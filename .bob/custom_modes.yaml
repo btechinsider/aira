@@ -1,0 +1,86 @@
+modes:
+  - slug: aira_incident_mode
+    name: "🚨 AIRA Incident Response"
+    description: "Autonomous incident response mode with intelligent triage and remediation"
+    
+    rules:
+      - name: "P0 Immediate Escalation"
+        condition: "severity == 'P0'"
+        action: "slack_alert"
+        description: "P0 incidents bypass automation and alert immediately"
+        
+      - name: "High Confidence Auto-Fix"
+        condition: "confidence_score > 0.85 AND severity != 'P0'"
+        action: "create_pr"
+        description: "High confidence fixes are automatically submitted as PRs"
+        
+      - name: "Security File Protection"
+        condition: "affected_file IN ['auth.py', 'security/', 'secrets.yml', 'credentials', '.env']"
+        action: "escalate"
+        description: "Security-critical files always require human approval"
+        
+      - name: "Human Approval Required"
+        condition: "confidence_score <= 0.85 OR action == 'escalate'"
+        action: "slack_approval"
+        description: "Low confidence or escalated incidents require human review"
+    
+    workflow:
+      steps:
+        - name: "Triage"
+          description: "Classify severity and generate summary using Groq LLM"
+          llm_model: "llama-3.3-70b-versatile"
+          
+        - name: "Diagnosis"
+          description: "Extract affected files, fetch code context, find similar incidents"
+          mcp_tools:
+            - "github-operations.fetch_affected_file"
+            - "incident-context.get_similar_incidents"
+            
+        - name: "Fix Generation"
+          description: "Generate patch and unit test"
+          llm_model: "llama-3.3-70b-versatile"
+          
+        - name: "Confidence Scoring"
+          description: "Calculate composite confidence score"
+          formula: "0.4 * llm_confidence + 0.3 * pattern_match + 0.3 * historical"
+          
+        - name: "Action Router"
+          description: "Decide action based on confidence and severity"
+          actions:
+            - "create_pr"
+            - "slack_alert"
+            - "slack_approval"
+    
+    integrations:
+      groq:
+        model: "llama-3.3-70b-versatile"
+        temperature: 0.2
+        max_tokens: 2000
+        
+      github:
+        auto_pr: true
+        branch_prefix: "aira-fix-"
+        pr_labels: ["automated-fix", "aira"]
+        
+      slack:
+        alert_channel: "#incidents"
+        approval_timeout: 3600
+        
+      redis:
+        cache_ttl: 3600
+        incident_ttl: 7776000  # 90 days
+    
+    monitoring:
+      metrics:
+        - "incidents_processed"
+        - "prs_created"
+        - "confidence_scores"
+        - "resolution_time"
+        
+      alerts:
+        - condition: "p0_incidents > 0"
+          action: "immediate_notification"
+        - condition: "confidence_score < 0.5"
+          action: "log_warning"
+
+# Made with Bob

@@ -1,0 +1,41 @@
+{
+  "mcpServers": {
+    "github-operations": {
+      "command": "http",
+      "args": {
+        "url": "http://github-mcp:8000",
+        "method": "POST"
+      },
+      "env": {
+        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+      },
+      "autoApprove": [
+        "fetch_affected_file",
+        "create_remediation_pr"
+      ],
+      "description": "GitHub operations for fetching code and creating PRs"
+    },
+    "incident-context": {
+      "command": "http",
+      "args": {
+        "url": "http://incident-context-mcp:8000",
+        "method": "POST"
+      },
+      "env": {
+        "REDIS_URL": "redis://redis:6379"
+      },
+      "autoApprove": [
+        "get_similar_incidents",
+        "store_incident_outcome"
+      ],
+      "description": "Incident context and similarity search"
+    }
+  },
+  "globalSettings": {
+    "timeout": 30000,
+    "retries": 3,
+    "logLevel": "info"
+  }
+}
+
+// Made with Bob

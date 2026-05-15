@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #0f172a;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+@layer components {
+  .incident-card {
+    @apply bg-slate-800 rounded-lg shadow-lg p-6 border border-slate-700 hover:border-slate-600 transition-colors;
+  }
+
+  .severity-badge {
+    @apply px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide;
+  }
+
+  .severity-p0 {
+    @apply bg-red-900 text-red-100 border border-red-700;
+  }
+
+  .severity-p1 {
+    @apply bg-orange-900 text-orange-100 border border-orange-700;
+  }
+
+  .severity-p2 {
+    @apply bg-yellow-900 text-yellow-100 border border-yellow-700;
+  }
+
+  .severity-p3 {
+    @apply bg-blue-900 text-blue-100 border border-blue-700;
+  }
+
+  .status-badge {
+    @apply px-2 py-1 rounded text-xs font-medium;
+  }
+
+  .status-processing {
+    @apply bg-blue-500/20 text-blue-300 animate-pulse;
+  }
+
+  .status-completed {
+    @apply bg-green-500/20 text-green-300;
+  }
+
+  .status-error {
+    @apply bg-red-500/20 text-red-300;
+  }
+}
+
+/* Made with Bob */

@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: aira-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - aira-network
+
+  github-mcp:
+    build:
+      context: ../mcp-servers/github_mcp
+      dockerfile: Dockerfile
+    container_name: aira-github-mcp
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    ports:
+      - "8001:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - aira-network
+
+  incident-context-mcp:
+    build:
+      context: ../mcp-servers/incident_context_mcp
+      dockerfile: Dockerfile
+    container_name: aira-incident-context-mcp
+    environment:
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "8002:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - aira-network
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.backend
+    container_name: aira-backend
+    environment:
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_REPO=${GITHUB_REPO}
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL=sqlite:////data/aira.db
+      - GITHUB_MCP_URL=http://github-mcp:8000
+      - INCIDENT_CONTEXT_MCP_URL=http://incident-context-mcp:8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - sqlite-data:/data
+      - ../backend:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      github-mcp:
+        condition: service_healthy
+      incident-context-mcp:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    networks:
+      - aira-network
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+    container_name: aira-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      - REACT_APP_BACKEND_URL=http://localhost:8000
+      - REACT_APP_WS_URL=ws://localhost:8000/ws
+    networks:
+      - aira-network
+
+volumes:
+  redis-data:
+    driver: local
+  sqlite-data:
+    driver: local
+
+networks:
+  aira-network:
+    driver: bridge
+
+# Made with Bob
