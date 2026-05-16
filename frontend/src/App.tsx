@@ -1,6 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useWebSocket } from './websocket';
 import { IncidentFeed } from './IncidentFeed';
+import { AuthProvider, useAuth } from './AuthContext';
+import { Login } from './Login';
+import { Register } from './Register';
+import { Dashboard } from './Dashboard';
+import { ApiDocumentation } from './ApiDocumentation';
+import { UserGuide } from './UserGuide';
+import { DiagnosisGuide } from './DiagnosisGuide';
 import './index.css';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
@@ -18,10 +25,50 @@ interface Incident {
   messages: string[];
 }
 
-function App() {
+type ViewType = 'incidents' | 'dashboard' | 'api-docs' | 'user-guide' | 'diagnosis-guide';
+
+function MainApp() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const [showRegister, setShowRegister] = useState(false);
+  const [currentView, setCurrentView] = useState<ViewType>('incidents');
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return showRegister ? (
+      <Register onSwitchToLogin={() => setShowRegister(false)} />
+    ) : (
+      <Login onSwitchToRegister={() => setShowRegister(true)} />
+    );
+  }
+
+  // Render based on current view
+  switch (currentView) {
+    case 'dashboard':
+      return <Dashboard onBack={() => setCurrentView('incidents')} />;
+    case 'api-docs':
+      return <ApiDocumentation onBack={() => setCurrentView('incidents')} />;
+    case 'user-guide':
+      return <UserGuide onBack={() => setCurrentView('incidents')} />;
+    case 'diagnosis-guide':
+      return <DiagnosisGuide onBack={() => setCurrentView('incidents')} />;
+    default:
+      return <IncidentMonitor onNavigate={setCurrentView} />;
+  }
+}
+
+function IncidentMonitor({ onNavigate }: { onNavigate: (view: ViewType) => void }) {
+  const { user, logout } = useAuth();
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [stats, setStats] = useState({ total: 0, processing: 0, completed: 0 });
   const { lastMessage, isConnected } = useWebSocket(WS_URL);
+  const [showDocsMenu, setShowDocsMenu] = useState(false);
 
   // Fetch initial incidents
   const fetchIncidents = async () => {
@@ -120,6 +167,75 @@ function App() {
             </div>
             
             <div className="flex items-center gap-4">
+              {/* Navigation Menu */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onNavigate('dashboard')}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors text-sm"
+                >
+                  Dashboard
+                </button>
+                
+                {/* Documentation Dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowDocsMenu(!showDocsMenu)}
+                    className="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors text-sm flex items-center gap-2"
+                  >
+                    📚 Documentation
+                    <svg className={`w-4 h-4 transition-transform ${showDocsMenu ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  
+                  {showDocsMenu && (
+                    <div className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-20">
+                      <button
+                        onClick={() => {
+                          onNavigate('api-docs');
+                          setShowDocsMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-slate-700 transition-colors text-sm border-b border-slate-700"
+                      >
+                        <div className="font-semibold">🔌 API Documentation</div>
+                        <div className="text-xs text-slate-400 mt-1">REST API endpoints & examples</div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onNavigate('user-guide');
+                          setShowDocsMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-slate-700 transition-colors text-sm border-b border-slate-700"
+                      >
+                        <div className="font-semibold">📖 User Guide</div>
+                        <div className="text-xs text-slate-400 mt-1">Getting started & best practices</div>
+                      </button>
+                      <button
+                        onClick={() => {
+                          onNavigate('diagnosis-guide');
+                          setShowDocsMenu(false);
+                        }}
+                        className="w-full text-left px-4 py-3 hover:bg-slate-700 transition-colors text-sm"
+                      >
+                        <div className="font-semibold">🔧 Diagnosis Guide</div>
+                        <div className="text-xs text-slate-400 mt-1">Troubleshooting & diagnostics</div>
+                      </button>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="text-right">
+                  <p className="text-xs text-slate-400">Logged in as</p>
+                  <p className="text-sm font-semibold">{user?.username}</p>
+                </div>
+                <button
+                  onClick={logout}
+                  className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-sm"
+                >
+                  Logout
+                </button>
+              </div>
+
               {/* Connection Status */}
               <div className="flex items-center gap-2">
                 <div
@@ -174,6 +290,14 @@ function App() {
         </div>
       </footer>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <MainApp />
+    </AuthProvider>
   );
 }
 

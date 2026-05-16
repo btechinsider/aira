@@ -1,0 +1,53 @@
+# AIRA Log Monitor Configuration
+
+# AIRA webhook URL
+aira_url: "http://localhost:8000/webhook"
+
+# Application name (used for context in incidents)
+app_name: "my-python-app"
+
+# Log paths to monitor (files or directories)
+log_paths:
+  - "/var/log/myapp/app.log"
+  - "/var/log/myapp/error.log"
+  # - "/path/to/log/directory"  # Will monitor all .log files in directory
+
+# Error patterns to match (regex)
+error_patterns:
+  - "ERROR"
+  - "CRITICAL"
+  - "FATAL"
+  - "Exception"
+  - "Traceback"
+  - "Error:"
+  - "FAILED"
+  - "panic"
+
+# Severity mapping (optional)
+severity_keywords:
+  P0:  # Critical - immediate attention
+    - "critical"
+    - "fatal"
+    - "panic"
+    - "security breach"
+    - "data loss"
+  P1:  # High - major functionality broken
+    - "error"
+    - "exception"
+    - "failed"
+  P2:  # Medium - minor issues
+    - "warning"
+    - "warn"
+
+# Monitoring settings
+monitoring:
+  # Check interval in seconds
+  check_interval: 1
+  
+  # Maximum errors to track (prevents memory growth)
+  max_tracked_errors: 100
+  
+  # Request timeout for AIRA webhook (seconds)
+  timeout: 5
+
+# Made with Bob

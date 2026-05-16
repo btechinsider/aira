@@ -9,15 +9,18 @@ from datetime import datetime
 from typing import List, Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks, HTTPException, Header, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from models import init_db, get_db, Incident, SessionLocal
+from models import init_db, get_db, Incident, SessionLocal, APIKey
 from agent import run_incident_agent
 from groq_client import get_groq_client
 from mcp_clients import get_mcp_manager
+from auth_routes import router as auth_router
+from auth import verify_api_key
+from integration_guides import router as integration_router
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -119,6 +122,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include authentication routes
+app.include_router(auth_router)
+app.include_router(integration_router)
+
+
+async def verify_webhook_auth(api_key: Optional[str] = None):
+    """Verify webhook authentication via API key"""
+    if not api_key:
+        return False
+    
+    db = SessionLocal()
+    try:
+        is_valid = await verify_api_key(api_key, db)
+        return is_valid
+    finally:
+        db.close()
+
 
 async def process_incident_background(incident_id: str, event: LogEvent):
     """
@@ -163,6 +183,8 @@ async def process_incident_background(incident_id: str, event: LogEvent):
                 incident.affected_file = final_state.get("affected_file", "")
                 incident.affected_line = final_state.get("affected_line", 0)
                 incident.escalated = final_state.get("escalated", False)
+                incident.language = final_state.get("language", "")
+                incident.stack_frames_count = final_state.get("stack_frames_count", 0)
                 incident.resolution_status = "resolved" if final_state.get("action_taken") else "pending"
                 
                 if final_state.get("action_taken"):
@@ -221,10 +243,24 @@ async def health_check():
 
 
 @app.post("/webhook", response_model=IncidentResponse)
-async def webhook_handler(event: LogEvent, background_tasks: BackgroundTasks):
+async def webhook_handler(
+    event: LogEvent,
+    background_tasks: BackgroundTasks,
+    x_api_key: Optional[str] = Header(None)
+):
     """
     Webhook endpoint to receive log events
+    Supports optional API key authentication via X-API-Key header
     """
+    # Optional: Verify API key if provided
+    if x_api_key:
+        is_valid = await verify_webhook_auth(x_api_key)
+        if not is_valid:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid API key"
+            )
+    
     # Generate incident ID
     incident_id = event.id or str(uuid.uuid4())
     

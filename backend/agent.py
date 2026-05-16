@@ -14,6 +14,7 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from groq_client import get_groq_client
 from mcp_clients import get_mcp_manager
+from diagnosis_enhanced import EnhancedDiagnosisAgent, DiagnosisContext
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -46,6 +47,9 @@ class IncidentState(TypedDict):
     error_signature: str
     escalated: bool
     messages: Annotated[list, "append"]
+    # Enhanced diagnosis fields
+    language: str
+    stack_frames_count: int
 
 
 async def triage_node(state: IncidentState) -> IncidentState:
@@ -112,7 +116,7 @@ Classify this incident."""
 
 async def diagnosis_node(state: IncidentState) -> IncidentState:
     """
-    Diagnosis node: Extract file/line, fetch context, find similar incidents
+    Enhanced diagnosis node: Multi-language stack trace parsing, deep GitHub integration
     """
     logger.info(f"[Diagnosis] Analyzing incident {state['incident_id']}")
     
@@ -124,116 +128,56 @@ async def diagnosis_node(state: IncidentState) -> IncidentState:
     groq = get_groq_client()
     mcp = get_mcp_manager()
     
-    # Extract file path and line number from stack trace
-    file_path = None
-    line_number = None
-    
-    if state.get("stack_trace"):
-        # Common patterns: "at file.py:123", "File \"file.py\", line 123"
-        patterns = [
-            r'File "([^"]+)", line (\d+)',
-            r'at ([^\s:]+):(\d+)',
-            r'([^\s]+\.py):(\d+)',
-        ]
-        
-        for pattern in patterns:
-            match = re.search(pattern, state["stack_trace"])
-            if match:
-                file_path = match.group(1)
-                line_number = int(match.group(2))
-                break
-    
-    if file_path and line_number:
-        state["affected_file"] = file_path
-        state["affected_line"] = line_number
-        logger.info(f"[Diagnosis] Affected: {file_path}:{line_number}")
-        
-        # Check if file is in blocked paths
-        for blocked in BLOCKED_PATHS:
-            if blocked in file_path:
-                logger.warning(f"[Diagnosis] File {file_path} is in blocked paths, escalating")
-                state["escalated"] = True
-                state["action_taken"] = "slack_alert"
-                state["diagnosis"] = f"Security-critical file detected: {file_path}"
-                state["messages"].append(f"Diagnosis: Blocked path detected, escalating")
-                return state
-        
-        # Fetch code context from GitHub
-        try:
-            repo = os.getenv("GITHUB_REPO", "owner/repo")
-            context_result = await mcp.fetch_github_context(
-                repo=repo,
-                file_path=file_path,
-                line_number=line_number,
-                context_lines=10
-            )
-            state["code_context"] = context_result.get("code_snippet", "")
-            logger.info(f"[Diagnosis] Fetched code context ({len(state['code_context'])} chars)")
-        except Exception as e:
-            logger.warning(f"[Diagnosis] Failed to fetch code context: {e}")
-            state["code_context"] = ""
-    else:
-        logger.warning("[Diagnosis] Could not extract file/line from stack trace")
-        state["affected_file"] = "unknown"
-        state["affected_line"] = 0
-    
-    # Find similar past incidents
-    try:
-        similar = await mcp.get_similar_incidents(
-            error_signature=state["error_signature"],
-            limit=5
-        )
-        state["similar_incidents"] = similar
-        logger.info(f"[Diagnosis] Found {len(similar)} similar incidents")
-    except Exception as e:
-        logger.warning(f"[Diagnosis] Failed to fetch similar incidents: {e}")
-        state["similar_incidents"] = []
-    
-    # Generate diagnosis using LLM
-    system_prompt = """You are an expert software debugger. Analyze the incident and provide:
-1. Root cause analysis
-2. Detailed diagnosis
-
-Respond in JSON format:
-{
-  "root_cause": "brief root cause",
-  "diagnosis": "detailed diagnosis with reasoning"
-}"""
-    
-    similar_context = ""
-    if state["similar_incidents"]:
-        similar_context = "\n\nSimilar past incidents:\n"
-        for inc in state["similar_incidents"][:3]:
-            similar_context += f"- {inc.get('root_cause', 'N/A')}: {inc.get('resolution', 'N/A')}\n"
-    
-    prompt = f"""Error: {state['triage_summary']}
-
-Stack Trace:
-{state.get('stack_trace', 'N/A')}
-
-Code Context ({state.get('affected_file', 'unknown')}:{state.get('affected_line', 0)}):
-{state.get('code_context', 'N/A')}
-{similar_context}
-
-Diagnose the root cause."""
+    # Initialize enhanced diagnosis agent
+    enhanced_agent = EnhancedDiagnosisAgent(groq, mcp)
     
     try:
-        result = await groq.call_groq_with_json(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            temperature=0.2,
-            use_cache=True
+        # Perform comprehensive diagnosis
+        diagnosis_context = await enhanced_agent.diagnose(
+            incident_id=state['incident_id'],
+            error_message=state['raw_log'],
+            stack_trace=state.get('stack_trace', ''),
+            error_signature=state['error_signature']
         )
         
-        state["root_cause"] = result.get("root_cause", "Unknown")
-        state["diagnosis"] = result.get("diagnosis", "Unable to diagnose")
-        state["messages"].append(f"Diagnosis: {state['root_cause']}")
-        logger.info(f"[Diagnosis] Root cause: {state['root_cause']}")
+        # Update state with diagnosis results
+        if diagnosis_context.primary_frame:
+            state["affected_file"] = diagnosis_context.primary_frame.file_path
+            state["affected_line"] = diagnosis_context.primary_frame.line_number
+            logger.info(f"[Diagnosis] Affected: {diagnosis_context.primary_frame}")
+        else:
+            state["affected_file"] = "unknown"
+            state["affected_line"] = 0
+        
+        state["code_context"] = diagnosis_context.code_context
+        state["similar_incidents"] = diagnosis_context.similar_incidents
+        state["root_cause"] = diagnosis_context.root_cause
+        state["diagnosis"] = diagnosis_context.diagnosis
+        
+        # Store enhanced diagnosis fields
+        state["language"] = diagnosis_context.language.value
+        state["stack_frames_count"] = len(diagnosis_context.stack_frames)
+        
+        # Check if escalation is needed (security-critical files)
+        if "Security-critical file" in diagnosis_context.root_cause:
+            state["escalated"] = True
+            state["action_taken"] = "slack_alert"
+            logger.warning(f"[Diagnosis] Security-critical file detected, escalating")
+        
+        state["messages"].append(f"Diagnosis: {diagnosis_context.root_cause}")
+        logger.info(f"[Diagnosis] Root cause: {diagnosis_context.root_cause} (confidence: {diagnosis_context.confidence:.2f})")
+        logger.info(f"[Diagnosis] Language: {diagnosis_context.language.value}")
+        logger.info(f"[Diagnosis] Stack frames: {len(diagnosis_context.stack_frames)}")
         
     except Exception as e:
-        logger.error(f"[Diagnosis] Error: {e}")
+        logger.error(f"[Diagnosis] Enhanced diagnosis failed: {e}")
+        # Fallback to basic diagnosis
         state["root_cause"] = "Diagnosis failed"
         state["diagnosis"] = str(e)
+        state["affected_file"] = "unknown"
+        state["affected_line"] = 0
+        state["code_context"] = ""
+        state["similar_incidents"] = []
         state["messages"].append(f"Diagnosis error: {str(e)}")
     
     return state
@@ -393,7 +337,7 @@ Rate confidence (0-100):"""
     return state
 
 
-async def action_router(state: IncidentState) -> Literal["pr_created", "slack_alert", "human_approval"]:
+async def action_router(state: IncidentState) -> IncidentState:
     """
     Action router: Decide what action to take based on confidence and severity
     """
@@ -413,7 +357,7 @@ async def action_router(state: IncidentState) -> Literal["pr_created", "slack_al
         )
         state["action_taken"] = "slack_alert"
         state["messages"].append("Action: Slack alert sent (P0/escalated)")
-        return "slack_alert"
+        return state
     
     # High confidence (>85%) and not P0 -> Auto-create PR
     if state.get("confidence_score", 0) > 0.85 and state.get("proposed_fix"):
@@ -462,7 +406,7 @@ async def action_router(state: IncidentState) -> Literal["pr_created", "slack_al
             )
             
             logger.info(f"[Router] PR created: {state['pr_url']}")
-            return "pr_created"
+            return state
             
         except Exception as e:
             logger.error(f"[Router] PR creation failed: {e}")
@@ -491,7 +435,7 @@ Please review and approve or reject this fix.""",
     state["action_taken"] = "human_approval"
     state["messages"].append("Action: Awaiting human approval via Slack")
     
-    return "human_approval"
+    return state
 
 
 # Build the graph
@@ -555,7 +499,9 @@ async def run_incident_agent(incident_id: str, raw_log: str, stack_trace: str = 
         pr_url="",
         error_signature="",
         escalated=False,
-        messages=[]
+        messages=[],
+        language="",
+        stack_frames_count=0
     )
     
     # Build graph with checkpointing

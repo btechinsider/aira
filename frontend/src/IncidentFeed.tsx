@@ -8,6 +8,13 @@ interface Incident {
   created_at: string;
   status: string;
   messages: string[];
+  // Enhanced diagnosis fields
+  affected_file?: string;
+  affected_line?: number;
+  root_cause?: string;
+  diagnosis?: string;
+  language?: string;
+  stack_frames_count?: number;
 }
 
 interface IncidentFeedProps {
@@ -46,6 +53,21 @@ export function IncidentFeed({ incidents, onRefresh }: IncidentFeedProps) {
       default:
         return '⏳';
     }
+  };
+
+  const getLanguageIcon = (language?: string) => {
+    if (!language) return '📄';
+    const icons: Record<string, string> = {
+      python: '🐍',
+      javascript: '🟨',
+      typescript: '🔷',
+      java: '☕',
+      go: '🐹',
+      ruby: '💎',
+      php: '🐘',
+      csharp: '#️⃣',
+    };
+    return icons[language.toLowerCase()] || '📄';
   };
 
   const formatTimestamp = (timestamp: string) => {
@@ -103,6 +125,74 @@ export function IncidentFeed({ incidents, onRefresh }: IncidentFeedProps) {
             <p className="text-slate-400 text-sm mb-3 font-mono">
               ID: {incident.id}
             </p>
+
+            {/* Enhanced Diagnosis Section */}
+            {(incident.language || incident.affected_file || incident.root_cause) && (
+              <div className="mb-4 p-4 bg-slate-800 rounded-lg border border-slate-700">
+                <h4 className="text-sm font-semibold text-slate-300 mb-3 flex items-center gap-2">
+                  <span>🔍</span>
+                  <span>Diagnosis Details</span>
+                </h4>
+                
+                {/* Language & Stack Frames */}
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  {incident.language && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">{getLanguageIcon(incident.language)}</span>
+                      <div>
+                        <p className="text-xs text-slate-400">Language</p>
+                        <p className="text-sm text-white capitalize">{incident.language}</p>
+                      </div>
+                    </div>
+                  )}
+                  {incident.stack_frames_count !== undefined && incident.stack_frames_count > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">📚</span>
+                      <div>
+                        <p className="text-xs text-slate-400">Stack Frames</p>
+                        <p className="text-sm text-white">{incident.stack_frames_count}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Affected File */}
+                {incident.affected_file && (
+                  <div className="mb-3">
+                    <p className="text-xs text-slate-400 mb-1">Affected File</p>
+                    <div className="flex items-center gap-2 bg-slate-900 px-3 py-2 rounded font-mono text-sm">
+                      <span className="text-red-400">📄</span>
+                      <span className="text-slate-300">{incident.affected_file}</span>
+                      {incident.affected_line && (
+                        <span className="text-slate-500">:{incident.affected_line}</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Root Cause */}
+                {incident.root_cause && (
+                  <div className="mb-3">
+                    <p className="text-xs text-slate-400 mb-1">Root Cause</p>
+                    <p className="text-sm text-amber-300 bg-slate-900 px-3 py-2 rounded">
+                      {incident.root_cause}
+                    </p>
+                  </div>
+                )}
+
+                {/* Detailed Diagnosis */}
+                {incident.diagnosis && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs text-slate-400 hover:text-white transition-colors">
+                      View Detailed Diagnosis
+                    </summary>
+                    <div className="mt-2 text-sm text-slate-300 bg-slate-900 px-3 py-2 rounded whitespace-pre-wrap">
+                      {incident.diagnosis}
+                    </div>
+                  </details>
+                )}
+              </div>
+            )}
 
             {/* Confidence Score */}
             {incident.confidence_score > 0 && (

@@ -2,10 +2,11 @@
 SQLAlchemy models for AIRA incident tracking
 """
 from datetime import datetime
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Text, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
 import os
+import uuid
 
 Base = declarative_base()
 
@@ -34,6 +35,9 @@ class Incident(Base):
     resolved_at = Column(DateTime)
     resolution_status = Column(String)  # pending, resolved, escalated
     escalated = Column(Boolean, default=False)
+    # Enhanced diagnosis fields
+    language = Column(String)  # Detected programming language
+    stack_frames_count = Column(Integer)  # Number of stack frames parsed
     
     def to_dict(self):
         """Convert incident to dictionary"""
@@ -57,7 +61,71 @@ class Incident(Base):
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "resolved_at": self.resolved_at.isoformat() if self.resolved_at else None,
             "resolution_status": self.resolution_status,
-            "escalated": self.escalated
+            "escalated": self.escalated,
+            # Enhanced diagnosis fields
+            "language": self.language,
+            "stack_frames_count": self.stack_frames_count
+        }
+
+
+class User(Base):
+    """User model for authentication and authorization"""
+    __tablename__ = "users"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    email = Column(String, unique=True, nullable=False, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    hashed_password = Column(String, nullable=False)
+    full_name = Column(String)
+    is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_login = Column(DateTime)
+    
+    # Relationships
+    api_keys = relationship("APIKey", back_populates="user", cascade="all, delete-orphan")
+    
+    def to_dict(self):
+        """Convert user to dictionary (excluding password)"""
+        return {
+            "id": self.id,
+            "email": self.email,
+            "username": self.username,
+            "full_name": self.full_name,
+            "is_active": self.is_active,
+            "is_admin": self.is_admin,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "last_login": self.last_login.isoformat() if self.last_login else None
+        }
+
+
+class APIKey(Base):
+    """API Key model for webhook authentication"""
+    __tablename__ = "api_keys"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    key = Column(String, unique=True, nullable=False, index=True)
+    name = Column(String, nullable=False)  # Friendly name for the key
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    last_used_at = Column(DateTime)
+    expires_at = Column(DateTime)  # Optional expiration
+    
+    # Relationships
+    user = relationship("User", back_populates="api_keys")
+    
+    def to_dict(self):
+        """Convert API key to dictionary"""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "key": self.key,
+            "name": self.name,
+            "is_active": self.is_active,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "last_used_at": self.last_used_at.isoformat() if self.last_used_at else None,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None
         }
 
 
@@ -69,6 +137,28 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
     """Initialize database tables"""
+    # Check if we need to recreate the database due to schema changes
+    import sqlite3
+    if "sqlite" in DATABASE_URL:
+        db_path = DATABASE_URL.replace("sqlite:///", "")
+        if os.path.exists(db_path):
+            # Check if the new columns exist
+            try:
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute("PRAGMA table_info(incidents)")
+                columns = [row[1] for row in cursor.fetchall()]
+                conn.close()
+                
+                # If new columns don't exist, drop and recreate
+                if 'language' not in columns or 'stack_frames_count' not in columns:
+                    print("Schema migration needed - recreating database...")
+                    Base.metadata.drop_all(bind=engine)
+            except Exception as e:
+                print(f"Error checking schema: {e}")
+                # If there's any error, recreate the database
+                Base.metadata.drop_all(bind=engine)
+    
     Base.metadata.create_all(bind=engine)
 
 

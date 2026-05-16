@@ -104,10 +104,32 @@ services:
     networks:
       - aira-network
 
+  log-monitor:
+    build:
+      context: ../log-monitor
+      dockerfile: Dockerfile
+    container_name: aira-log-monitor
+    environment:
+      - AIRA_URL=http://backend:8000/webhook
+      - APP_NAME=monitored-app
+    volumes:
+      # Mount your application logs here
+      - app-logs:/logs
+      # Example: Mount host logs
+      # - /var/log/myapp:/logs
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - aira-network
+    restart: unless-stopped
+
 volumes:
   redis-data:
     driver: local
   sqlite-data:
+    driver: local
+  app-logs:
     driver: local
 
 networks:
