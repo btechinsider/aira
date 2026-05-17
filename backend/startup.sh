@@ -38,10 +38,10 @@ echo "Checking required environment variables..."
 
 echo ""
 echo "================================"
-echo "Starting Uvicorn server..."
+echo "Starting Uvicorn server on port ${PORT:-8000}..."
 echo ""
 
-# Start the application
-exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Start the application with verbose logging
+exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level debug 2>&1
 
 # Made with Bob
