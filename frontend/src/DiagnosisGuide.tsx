@@ -1,5 +1,18 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
+import {
+  Zap,
+  Heart,
+  Bug,
+  Wrench,
+  Rocket,
+  Database,
+  BarChart3,
+  RefreshCw,
+  Copy,
+  Check,
+  Lightbulb
+} from 'lucide-react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
@@ -15,14 +28,14 @@ export const DiagnosisGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => 
   };
 
   const sections = [
-    { id: 'quick-diagnostics', title: 'Quick Diagnostics', icon: '⚡' },
-    { id: 'health-checks', title: 'System Health', icon: '💚' },
-    { id: 'common-issues', title: 'Common Issues', icon: '🐛' },
-    { id: 'components', title: 'Component Troubleshooting', icon: '🔧' },
-    { id: 'performance', title: 'Performance Issues', icon: '🚀' },
-    { id: 'database', title: 'Database Issues', icon: '💾' },
-    { id: 'logging', title: 'Logging & Monitoring', icon: '📊' },
-    { id: 'recovery', title: 'Recovery Procedures', icon: '🔄' },
+    { id: 'quick-diagnostics', title: 'Quick Diagnostics', icon: Zap },
+    { id: 'health-checks', title: 'System Health', icon: Heart },
+    { id: 'common-issues', title: 'Common Issues', icon: Bug },
+    { id: 'components', title: 'Component Troubleshooting', icon: Wrench },
+    { id: 'performance', title: 'Performance Issues', icon: Rocket },
+    { id: 'database', title: 'Database Issues', icon: Database },
+    { id: 'logging', title: 'Logging & Monitoring', icon: BarChart3 },
+    { id: 'recovery', title: 'Recovery Procedures', icon: RefreshCw },
   ];
 
   const CodeBlock: React.FC<{ code: string; language: string; id: string }> = ({ code, language, id }) => (
@@ -31,9 +44,19 @@ export const DiagnosisGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => 
         <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded">{language}</span>
         <button
           onClick={() => copyToClipboard(code, id)}
-          className="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded transition-colors"
+          className="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded transition-colors flex items-center gap-1"
         >
-          {copiedCode === id ? '✓ Copied' : '📋 Copy'}
+          {copiedCode === id ? (
+            <>
+              <Check size={12} />
+              <span>Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy size={12} />
+              <span>Copy</span>
+            </>
+          )}
         </button>
       </div>
       <pre className="bg-slate-800 p-4 rounded-lg overflow-x-auto text-sm">
@@ -81,20 +104,23 @@ export const DiagnosisGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => 
           <div className="sticky top-24 bg-slate-800 rounded-lg p-4">
             <h3 className="text-sm font-semibold text-slate-400 mb-3">SECTIONS</h3>
             <nav className="space-y-1">
-              {sections.map((section) => (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveSection(section.id)}
-                  className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                    activeSection === section.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  <span>{section.icon}</span>
-                  <span className="text-sm">{section.title}</span>
-                </button>
-              ))}
+              {sections.map((section) => {
+                const IconComponent = section.icon;
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveSection(section.id)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                      activeSection === section.id
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <IconComponent size={18} />
+                    <span className="text-sm">{section.title}</span>
+                  </button>
+                );
+              })}
             </nav>
           </div>
         </aside>
@@ -169,7 +195,10 @@ export const DiagnosisGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => 
               </div>
 
               <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-4">
-                <h3 className="font-semibold mb-2 text-blue-400">💡 Quick Status Script</h3>
+                <h3 className="font-semibold mb-2 text-blue-400 flex items-center gap-2">
+                  <Lightbulb size={18} />
+                  Quick Status Script
+                </h3>
                 <p className="text-slate-300 text-sm mb-3">
                   Create a script to check all health indicators at once:
                 </p>
@@ -899,7 +928,10 @@ docker-compose -f docker/docker-compose.yml up -d`}
                   </div>
 
                   <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-4">
-                    <h3 className="font-semibold mb-2 text-blue-400">💡 Best Practices</h3>
+                    <h3 className="font-semibold mb-2 text-blue-400 flex items-center gap-2">
+                      <Lightbulb size={18} />
+                      Best Practices
+                    </h3>
                     <ul className="list-disc list-inside space-y-1 text-slate-300 text-sm">
                       <li>Schedule automated backups daily</li>
                       <li>Keep at least 7 days of backups</li>

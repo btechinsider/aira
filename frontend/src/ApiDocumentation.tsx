@@ -1,5 +1,16 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
+import {
+  BookOpen,
+  Lock,
+  User,
+  Key,
+  AlertTriangle,
+  Plug,
+  AlertCircle,
+  Copy,
+  Check
+} from 'lucide-react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
@@ -20,13 +31,13 @@ export const ApiDocumentation: React.FC<{ onBack: () => void }> = ({ onBack }) =
   };
 
   const sections = [
-    { id: 'overview', title: 'Overview', icon: '📖' },
-    { id: 'authentication', title: 'Authentication', icon: '🔐' },
-    { id: 'user-management', title: 'User Management', icon: '👤' },
-    { id: 'api-keys', title: 'API Keys', icon: '🔑' },
-    { id: 'incidents', title: 'Incidents', icon: '🚨' },
-    { id: 'websocket', title: 'WebSocket', icon: '🔌' },
-    { id: 'errors', title: 'Error Handling', icon: '⚠️' },
+    { id: 'overview', title: 'Overview', icon: BookOpen },
+    { id: 'authentication', title: 'Authentication', icon: Lock },
+    { id: 'user-management', title: 'User Management', icon: User },
+    { id: 'api-keys', title: 'API Keys', icon: Key },
+    { id: 'incidents', title: 'Incidents', icon: AlertTriangle },
+    { id: 'websocket', title: 'WebSocket', icon: Plug },
+    { id: 'errors', title: 'Error Handling', icon: AlertCircle },
   ];
 
   const CodeBlock: React.FC<{ code: string; language: string; id: string }> = ({ code, language, id }) => (
@@ -35,9 +46,19 @@ export const ApiDocumentation: React.FC<{ onBack: () => void }> = ({ onBack }) =
         <span className="text-xs text-slate-400 bg-slate-800 px-2 py-1 rounded">{language}</span>
         <button
           onClick={() => copyToClipboard(code, id)}
-          className="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded transition-colors"
+          className="text-xs bg-slate-700 hover:bg-slate-600 px-2 py-1 rounded transition-colors flex items-center gap-1"
         >
-          {copiedCode === id ? '✓ Copied' : '📋 Copy'}
+          {copiedCode === id ? (
+            <>
+              <Check size={12} />
+              <span>Copied</span>
+            </>
+          ) : (
+            <>
+              <Copy size={12} />
+              <span>Copy</span>
+            </>
+          )}
         </button>
       </div>
       <pre className="bg-slate-800 p-4 rounded-lg overflow-x-auto text-sm">
@@ -85,20 +106,23 @@ export const ApiDocumentation: React.FC<{ onBack: () => void }> = ({ onBack }) =
           <div className="sticky top-24 bg-slate-800 rounded-lg p-4">
             <h3 className="text-sm font-semibold text-slate-400 mb-3">SECTIONS</h3>
             <nav className="space-y-1">
-              {sections.map((section) => (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveSection(section.id)}
-                  className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                    activeSection === section.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  <span>{section.icon}</span>
-                  <span className="text-sm">{section.title}</span>
-                </button>
-              ))}
+              {sections.map((section) => {
+                const IconComponent = section.icon;
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveSection(section.id)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                      activeSection === section.id
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <IconComponent size={18} />
+                    <span className="text-sm">{section.title}</span>
+                  </button>
+                );
+              })}
             </nav>
           </div>
         </aside>

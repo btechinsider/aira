@@ -1,21 +1,37 @@
 import { useState } from 'react';
 import { useAuth } from './AuthContext';
+import {
+  Rocket,
+  BarChart3,
+  Lock,
+  Key,
+  Plug,
+  AlertTriangle,
+  Eye,
+  Sparkles,
+  Wrench,
+  HelpCircle,
+  CheckCircle,
+  XCircle,
+  Lightbulb,
+  Clock
+} from 'lucide-react';
 
 export const UserGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => {
   const { user, logout } = useAuth();
   const [activeSection, setActiveSection] = useState('getting-started');
 
   const sections = [
-    { id: 'getting-started', title: 'Getting Started', icon: '🚀' },
-    { id: 'dashboard', title: 'Dashboard Overview', icon: '📊' },
-    { id: 'registration', title: 'Registration & Login', icon: '🔐' },
-    { id: 'api-keys', title: 'Managing API Keys', icon: '🔑' },
-    { id: 'integrations', title: 'Setting Up Integrations', icon: '🔌' },
-    { id: 'incidents', title: 'Understanding Incidents', icon: '🚨' },
-    { id: 'monitoring', title: 'Monitoring Resolution', icon: '👁️' },
-    { id: 'best-practices', title: 'Best Practices', icon: '✨' },
-    { id: 'troubleshooting', title: 'Troubleshooting', icon: '🔧' },
-    { id: 'faq', title: 'FAQ', icon: '❓' },
+    { id: 'getting-started', title: 'Getting Started', icon: Rocket },
+    { id: 'dashboard', title: 'Dashboard Overview', icon: BarChart3 },
+    { id: 'registration', title: 'Registration & Login', icon: Lock },
+    { id: 'api-keys', title: 'Managing API Keys', icon: Key },
+    { id: 'integrations', title: 'Setting Up Integrations', icon: Plug },
+    { id: 'incidents', title: 'Understanding Incidents', icon: AlertTriangle },
+    { id: 'monitoring', title: 'Monitoring Resolution', icon: Eye },
+    { id: 'best-practices', title: 'Best Practices', icon: Sparkles },
+    { id: 'troubleshooting', title: 'Troubleshooting', icon: Wrench },
+    { id: 'faq', title: 'FAQ', icon: HelpCircle },
   ];
 
   return (
@@ -57,20 +73,23 @@ export const UserGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => {
           <div className="sticky top-24 bg-slate-800 rounded-lg p-4">
             <h3 className="text-sm font-semibold text-slate-400 mb-3">SECTIONS</h3>
             <nav className="space-y-1">
-              {sections.map((section) => (
-                <button
-                  key={section.id}
-                  onClick={() => setActiveSection(section.id)}
-                  className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                    activeSection === section.id
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-300 hover:bg-slate-700'
-                  }`}
-                >
-                  <span>{section.icon}</span>
-                  <span className="text-sm">{section.title}</span>
-                </button>
-              ))}
+              {sections.map((section) => {
+                const IconComponent = section.icon;
+                return (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveSection(section.id)}
+                    className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                      activeSection === section.id
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-300 hover:bg-slate-700'
+                    }`}
+                  >
+                    <IconComponent size={18} />
+                    <span className="text-sm">{section.title}</span>
+                  </button>
+                );
+              })}
             </nav>
           </div>
         </aside>
@@ -185,19 +204,19 @@ export const UserGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <h3 className="text-xl font-semibold mb-3 text-blue-400">3. Resolution Status</h3>
                     <div className="bg-slate-700 rounded-lg p-4 space-y-2">
                       <div className="flex items-center gap-2">
-                        <span className="text-blue-400">⏳</span>
+                        <Clock size={18} className="text-blue-400" />
                         <span className="text-sm"><strong>Processing</strong>: AIRA is analyzing the incident</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-green-400">✅</span>
+                        <CheckCircle size={18} className="text-green-400" />
                         <span className="text-sm"><strong>Resolved</strong>: Fix has been applied</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-red-400">🚨</span>
+                        <AlertTriangle size={18} className="text-red-400" />
                         <span className="text-sm"><strong>Escalated</strong>: Requires human intervention</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-yellow-400">⏸️</span>
+                        <Clock size={18} className="text-yellow-400" />
                         <span className="text-sm"><strong>Pending</strong>: Awaiting approval</span>
                       </div>
                     </div>
@@ -259,7 +278,10 @@ export const UserGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                     <li>Click "Create New API Key"</li>
                     <li>Fill in the name and expiration period</li>
                     <li>Click "Generate Key"</li>
-                    <li className="text-yellow-400 font-semibold">⚠️ Copy the API key immediately - you won't see it again!</li>
+                    <li className="text-yellow-400 font-semibold flex items-center gap-2">
+                      <AlertTriangle size={16} />
+                      Copy the API key immediately - you won't see it again!
+                    </li>
                   </ol>
                 </div>
 
@@ -267,7 +289,10 @@ export const UserGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   <h3 className="text-xl font-semibold mb-3 text-blue-400">Security Best Practices</h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="bg-green-900/20 border border-green-600/50 rounded-lg p-4">
-                      <h4 className="font-semibold mb-2 text-green-400">✅ DO</h4>
+                      <h4 className="font-semibold mb-2 text-green-400 flex items-center gap-2">
+                        <CheckCircle size={18} />
+                        DO
+                      </h4>
                       <ul className="list-disc list-inside space-y-1 text-slate-300 text-sm">
                         <li>Create separate keys per environment</li>
                         <li>Set expiration dates</li>
@@ -277,7 +302,10 @@ export const UserGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                       </ul>
                     </div>
                     <div className="bg-red-900/20 border border-red-600/50 rounded-lg p-4">
-                      <h4 className="font-semibold mb-2 text-red-400">❌ DON'T</h4>
+                      <h4 className="font-semibold mb-2 text-red-400 flex items-center gap-2">
+                        <XCircle size={18} />
+                        DON'T
+                      </h4>
                       <ul className="list-disc list-inside space-y-1 text-slate-300 text-sm">
                         <li>Share keys between team members</li>
                         <li>Commit keys to version control</li>
@@ -626,8 +654,9 @@ export const UserGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => {
                   </div>
 
                   <div className="bg-blue-900/20 border border-blue-600/50 rounded-lg p-4">
-                    <p className="text-blue-400 text-sm">
-                      💡 For more detailed troubleshooting, see the <strong>Diagnosis Guide</strong>
+                    <p className="text-blue-400 text-sm flex items-center gap-2">
+                      <Lightbulb size={16} />
+                      For more detailed troubleshooting, see the <strong>Diagnosis Guide</strong>
                     </p>
                   </div>
                 </div>
