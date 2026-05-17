@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useWebSocket } from './websocket';
 import { IncidentFeed } from './IncidentFeed';
-import { AuthProvider, useAuth } from './AuthContext';
-import { Login } from './Login';
-import { Register } from './Register';
 import { Dashboard } from './Dashboard';
 import { ApiDocumentation } from './ApiDocumentation';
 import { UserGuide } from './UserGuide';
@@ -31,29 +28,8 @@ interface Incident {
 type ViewType = 'incidents' | 'dashboard' | 'ecommerce-demo' | 'api-docs' | 'user-guide' | 'diagnosis-guide';
 
 function MainApp() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const [showRegister, setShowRegister] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('incidents');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="spinner-lg mb-4"></div>
-          <p className="text-white text-xl">Loading AIRA...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) {
-    return showRegister ? (
-      <Register onSwitchToLogin={() => setShowRegister(false)} />
-    ) : (
-      <Login onSwitchToRegister={() => setShowRegister(true)} />
-    );
-  }
 
   // Render based on current view with sidebar
   return (
@@ -231,11 +207,7 @@ function IncidentMonitor() {
 }
 
 function App() {
-  return (
-    <AuthProvider>
-      <MainApp />
-    </AuthProvider>
-  );
+  return <MainApp />;
 }
 
 export default App;

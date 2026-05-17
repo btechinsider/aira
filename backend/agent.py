@@ -1,5 +1,6 @@
 """
 LangGraph Agent for Autonomous Incident Response
+Optimized with conditional routing and early exits
 """
 import os
 import re
@@ -14,6 +15,7 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 from groq_client import get_groq_client
 from mcp_clients import get_mcp_manager
 from diagnosis_enhanced import EnhancedDiagnosisAgent, DiagnosisContext
+from exceptions import AgentWorkflowError, DiagnosisError, FixGenerationError
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -116,13 +118,9 @@ Classify this incident."""
 async def diagnosis_node(state: IncidentState) -> IncidentState:
     """
     Enhanced diagnosis node: Multi-language stack trace parsing, deep GitHub integration
+    Note: Escalation check removed - handled by conditional routing
     """
     logger.info(f"[Diagnosis] Analyzing incident {state['incident_id']}")
-    
-    # Skip diagnosis if already escalated
-    if state.get("escalated"):
-        logger.info("[Diagnosis] Skipping - incident already escalated")
-        return state
     
     groq = get_groq_client()
     mcp = get_mcp_manager()
@@ -185,13 +183,9 @@ async def diagnosis_node(state: IncidentState) -> IncidentState:
 async def fix_node(state: IncidentState) -> IncidentState:
     """
     Fix node: Generate patch and unit test
+    Note: Escalation check removed - handled by conditional routing
     """
     logger.info(f"[Fix] Generating fix for incident {state['incident_id']}")
-    
-    # Skip if already escalated
-    if state.get("escalated"):
-        logger.info("[Fix] Skipping - incident already escalated")
-        return state
     
     groq = get_groq_client()
     
@@ -437,9 +431,84 @@ Please review and approve or reject this fix.""",
     return state
 
 
+# Conditional routing functions
+def should_skip_diagnosis(state: IncidentState) -> Literal["escalate", "diagnose"]:
+    """
+    Conditional edge: Skip diagnosis if incident is already escalated
+    P0 incidents go directly to escalation
+    """
+    if state.get("escalated") or state.get("severity") == "P0":
+        logger.info(f"[Router] Skipping diagnosis - incident escalated or P0")
+        return "escalate"
+    return "diagnose"
+
+
+def should_skip_fix(state: IncidentState) -> Literal["escalate", "fix"]:
+    """
+    Conditional edge: Skip fix generation if diagnosis failed or escalated
+    """
+    if state.get("escalated"):
+        logger.info(f"[Router] Skipping fix - incident escalated")
+        return "escalate"
+    
+    if not state.get("root_cause") or state.get("root_cause") == "Diagnosis failed":
+        logger.info(f"[Router] Skipping fix - diagnosis failed")
+        return "escalate"
+    
+    return "fix"
+
+
+def should_skip_confidence(state: IncidentState) -> Literal["escalate", "confidence"]:
+    """
+    Conditional edge: Skip confidence calculation if no fix was generated
+    """
+    if state.get("escalated"):
+        logger.info(f"[Router] Skipping confidence - incident escalated")
+        return "escalate"
+    
+    if not state.get("proposed_fix"):
+        logger.info(f"[Router] Skipping confidence - no fix generated")
+        return "escalate"
+    
+    return "confidence"
+
+
+async def escalate_node(state: IncidentState) -> IncidentState:
+    """
+    Escalation node: Handle escalated incidents
+    Sends Slack alert and marks as escalated
+    """
+    logger.info(f"[Escalate] Processing escalated incident {state['incident_id']}")
+    
+    mcp = get_mcp_manager()
+    
+    try:
+        await mcp.send_slack_alert(
+            incident_id=state["incident_id"],
+            severity=state.get("severity", "P0"),
+            summary=state.get("triage_summary", "Critical incident requiring human intervention"),
+            details=state.get("diagnosis", "Incident escalated for manual review"),
+            include_approval_buttons=False
+        )
+        
+        state["action_taken"] = "escalated"
+        state["messages"].append("Action: Escalated to human review via Slack")
+        
+        logger.info(f"[Escalate] Incident {state['incident_id']} escalated successfully")
+        
+    except Exception as e:
+        logger.error(f"[Escalate] Failed to send Slack alert: {e}", exc_info=True)
+        state["messages"].append(f"Escalation error: {str(e)}")
+    
+    return state
+
+
 # Build the graph
 def build_agent_graph():
-    """Build the LangGraph agent"""
+    """
+    Build the LangGraph agent with conditional routing
+    Optimized to skip unnecessary processing for escalated incidents
+    """
     
     workflow = StateGraph(IncidentState)
     
@@ -449,15 +518,47 @@ def build_agent_graph():
     workflow.add_node("fix", fix_node)
     workflow.add_node("confidence", confidence_node)
     workflow.add_node("action_router", action_router)
+    workflow.add_node("escalate", escalate_node)
     
-    # Define edges
+    # Set entry point
     workflow.set_entry_point("triage")
-    workflow.add_edge("triage", "diagnose")
-    workflow.add_edge("diagnose", "fix")
-    workflow.add_edge("fix", "confidence")
+    
+    # Conditional routing after triage
+    workflow.add_conditional_edges(
+        "triage",
+        should_skip_diagnosis,
+        {
+            "escalate": "escalate",  # P0 goes directly to escalation
+            "diagnose": "diagnose"   # Others continue normal flow
+        }
+    )
+    
+    # Conditional routing after diagnosis
+    workflow.add_conditional_edges(
+        "diagnose",
+        should_skip_fix,
+        {
+            "escalate": "escalate",  # Failed diagnosis escalates
+            "fix": "fix"             # Successful diagnosis continues
+        }
+    )
+    
+    # Conditional routing after fix
+    workflow.add_conditional_edges(
+        "fix",
+        should_skip_confidence,
+        {
+            "escalate": "escalate",      # No fix escalates
+            "confidence": "confidence"   # Fix generated continues
+        }
+    )
+    
+    # Linear edges for successful path
     workflow.add_edge("confidence", "action_router")
     workflow.add_edge("action_router", END)
+    workflow.add_edge("escalate", END)
     
+    logger.info("Agent graph built with conditional routing")
     return workflow
 
 

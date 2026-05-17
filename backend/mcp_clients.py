@@ -1,5 +1,6 @@
 """
 MCP Client Manager for GitHub and Incident Context operations
+Enhanced with circuit breakers and better error handling
 """
 import os
 import json
@@ -7,56 +8,97 @@ import logging
 from typing import Dict, Any, List, Optional
 import httpx
 
+from circuit_breaker import CircuitBreaker
+from exceptions import MCPServiceError, GitHubAPIError, TimeoutError as AIRATimeoutError
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
 class MCPClientManager:
-    """Manager for MCP server interactions"""
+    """
+    Manager for MCP server interactions with circuit breaker protection
+    """
     
     def __init__(self):
         self.github_mcp_url = os.getenv("GITHUB_MCP_URL", "http://github-mcp:8000")
         self.incident_context_mcp_url = os.getenv("INCIDENT_CONTEXT_MCP_URL", "http://incident-context-mcp:8000")
         self.timeout = 30.0
         
+        # Circuit breakers for each MCP service
+        self.github_circuit = CircuitBreaker(
+            failure_threshold=5,
+            timeout=60,
+            name="github_mcp"
+        )
+        self.incident_circuit = CircuitBreaker(
+            failure_threshold=5,
+            timeout=60,
+            name="incident_context_mcp"
+        )
+        
     async def _call_mcp_tool(
         self,
         base_url: str,
         tool_name: str,
-        arguments: Dict[str, Any]
+        arguments: Dict[str, Any],
+        circuit_breaker: CircuitBreaker
     ) -> Dict[str, Any]:
         """
-        Call an MCP tool via HTTP
+        Call an MCP tool via HTTP with circuit breaker protection
         
         Args:
             base_url: MCP server base URL
             tool_name: Tool name to call
             arguments: Tool arguments
+            circuit_breaker: Circuit breaker to use
             
         Returns:
             Tool response
+            
+        Raises:
+            MCPServiceError: If MCP call fails
+            CircuitBreakerOpen: If circuit breaker is open
         """
         url = f"{base_url}/mcp/tools/{tool_name}"
         
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                logger.info(f"Calling MCP tool: {tool_name} at {url}")
-                response = await client.post(
-                    url,
-                    json={"arguments": arguments}
+        async def _make_call():
+            try:
+                async with httpx.AsyncClient(timeout=self.timeout) as client:
+                    logger.info(f"Calling MCP tool: {tool_name} at {url}")
+                    response = await client.post(
+                        url,
+                        json={"arguments": arguments}
+                    )
+                    response.raise_for_status()
+                    result = response.json()
+                    logger.info(f"MCP tool {tool_name} succeeded")
+                    return result
+                    
+            except httpx.TimeoutException as e:
+                raise AIRATimeoutError(
+                    f"MCP tool {tool_name} timed out",
+                    details={"url": url, "timeout": self.timeout},
+                    original_error=e
                 )
-                response.raise_for_status()
-                result = response.json()
-                logger.info(f"MCP tool {tool_name} succeeded")
-                return result
-                
-        except httpx.HTTPStatusError as e:
-            logger.error(f"MCP tool {tool_name} HTTP error: {e.response.status_code}")
-            logger.error(f"Response: {e.response.text}")
-            raise Exception(f"MCP tool {tool_name} failed: {e.response.text}")
-        except Exception as e:
-            logger.error(f"MCP tool {tool_name} error: {e}")
-            raise Exception(f"MCP tool {tool_name} failed: {str(e)}")
+            except httpx.HTTPStatusError as e:
+                logger.error(f"MCP tool {tool_name} HTTP error: {e.response.status_code}", exc_info=True)
+                logger.error(f"Response: {e.response.text}")
+                raise MCPServiceError(
+                    f"MCP tool {tool_name} failed with status {e.response.status_code}",
+                    details={"url": url, "status_code": e.response.status_code, "response": e.response.text},
+                    original_error=e
+                )
+            except Exception as e:
+                logger.error(f"MCP tool {tool_name} error: {e}", exc_info=True)
+                raise MCPServiceError(
+                    f"MCP tool {tool_name} failed",
+                    details={"url": url, "error": str(e)},
+                    original_error=e
+                )
+        
+        # Execute with circuit breaker
+        return await circuit_breaker.call(_make_call)
     
     # GitHub MCP Tools
     
@@ -87,7 +129,8 @@ class MCPClientManager:
                 "file_path": file_path,
                 "line_number": line_number,
                 "context_lines": context_lines
-            }
+            },
+            self.github_circuit
         )
     
     async def create_pr(
@@ -123,7 +166,8 @@ class MCPClientManager:
                 "patch_content": patch_content,
                 "title": title,
                 "description": description
-            }
+            },
+            self.github_circuit
         )
     
     # Incident Context MCP Tools
@@ -149,7 +193,8 @@ class MCPClientManager:
             {
                 "error_signature": error_signature,
                 "limit": limit
-            }
+            },
+            self.incident_circuit
         )
         return result.get("incidents", [])
     
@@ -186,7 +231,8 @@ class MCPClientManager:
                 "resolution": resolution,
                 "patch_url": patch_url,
                 "success": success
-            }
+            },
+            self.incident_circuit
         )
     
     async def send_slack_alert(
@@ -272,8 +318,15 @@ class MCPClientManager:
                 logger.info(f"Slack alert sent for incident {incident_id}")
                 return {"status": "sent", "incident_id": incident_id}
         except Exception as e:
-            logger.error(f"Failed to send Slack alert: {e}")
+            logger.error(f"Failed to send Slack alert: {e}", exc_info=True)
             return {"status": "failed", "error": str(e)}
+    
+    def get_circuit_breaker_stats(self) -> Dict[str, Any]:
+        """Get circuit breaker statistics for all MCP services"""
+        return {
+            "github_mcp": self.github_circuit.get_state(),
+            "incident_context_mcp": self.incident_circuit.get_state()
+        }
 
 
 # Global instance

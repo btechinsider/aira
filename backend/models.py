@@ -7,6 +7,13 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import os
 import uuid
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+# Try to load from parent directory first (when running from backend/)
+load_dotenv(os.path.join(os.path.dirname(__file__), '..', '.env'))
+# Also try current directory (when running from project root)
+load_dotenv()
 
 Base = declarative_base()
 
@@ -131,6 +138,9 @@ class APIKey(Base):
 
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/aira.db")
+
+# Sanitize DATABASE_URL - strip whitespace and newlines
+DATABASE_URL = DATABASE_URL.strip() if DATABASE_URL else "sqlite:////app/data/aira.db"
 
 # Handle Supabase connection string format
 # Supabase uses postgres:// but SQLAlchemy requires postgresql://

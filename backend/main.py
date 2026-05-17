@@ -6,7 +6,7 @@ import uuid
 import asyncio
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Set
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, BackgroundTasks, HTTPException, Header, status
@@ -14,13 +14,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from models import init_db, get_db, Incident, SessionLocal, APIKey
+from models import init_db, get_db, Incident, SessionLocal
 from agent import run_incident_agent
 from groq_client import get_groq_client
 from mcp_clients import get_mcp_manager
-from auth_routes import router as auth_router
-from auth import verify_api_key
 from integration_guides import router as integration_router
+from database import get_db_session
+from exceptions import DatabaseError, WebSocketError
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -52,34 +52,85 @@ class WebSocketMessage(BaseModel):
 
 # WebSocket connection manager
 class ConnectionManager:
-    """Manage WebSocket connections"""
+    """
+    Thread-safe WebSocket connection manager
+    Fixes race conditions and memory leaks
+    """
     
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        self.active_connections: Set[WebSocket] = set()
+        self._lock = asyncio.Lock()
     
     async def connect(self, websocket: WebSocket):
-        await websocket.accept()
-        self.active_connections.append(websocket)
-        logger.info(f"WebSocket connected. Total connections: {len(self.active_connections)}")
+        """Accept and register a new WebSocket connection"""
+        try:
+            await websocket.accept()
+            async with self._lock:
+                self.active_connections.add(websocket)
+            logger.info(f"WebSocket connected. Total connections: {len(self.active_connections)}")
+        except Exception as e:
+            logger.error(f"Failed to accept WebSocket connection: {e}", exc_info=True)
+            raise WebSocketError("Failed to establish WebSocket connection", original_error=e)
     
-    def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+    async def disconnect(self, websocket: WebSocket):
+        """Safely remove a WebSocket connection"""
+        async with self._lock:
+            self.active_connections.discard(websocket)  # Safe removal, no error if not present
         logger.info(f"WebSocket disconnected. Total connections: {len(self.active_connections)}")
     
     async def broadcast(self, message: dict):
-        """Broadcast message to all connected clients"""
+        """
+        Broadcast message to all connected clients
+        Handles failures gracefully and cleans up dead connections
+        """
+        # Create snapshot of connections to avoid race conditions
+        async with self._lock:
+            connections = list(self.active_connections)
+        
+        if not connections:
+            logger.debug("No active WebSocket connections to broadcast to")
+            return
+        
         disconnected = []
-        for connection in self.active_connections:
+        for connection in connections:
             try:
-                await connection.send_json(message)
+                # Add timeout to prevent hanging
+                await asyncio.wait_for(
+                    connection.send_json(message),
+                    timeout=5.0
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"WebSocket send timeout, marking for removal")
+                disconnected.append(connection)
             except Exception as e:
                 logger.warning(f"Failed to send to client: {e}")
                 disconnected.append(connection)
         
         # Clean up disconnected clients
-        for conn in disconnected:
-            if conn in self.active_connections:
-                self.active_connections.remove(conn)
+        if disconnected:
+            async with self._lock:
+                for conn in disconnected:
+                    self.active_connections.discard(conn)
+            logger.info(f"Cleaned up {len(disconnected)} dead WebSocket connections")
+    
+    async def get_connection_count(self) -> int:
+        """Get current number of active connections"""
+        async with self._lock:
+            return len(self.active_connections)
+    
+    async def close_all(self):
+        """Close all active connections (for shutdown)"""
+        async with self._lock:
+            connections = list(self.active_connections)
+            self.active_connections.clear()
+        
+        for connection in connections:
+            try:
+                await connection.close()
+            except Exception as e:
+                logger.warning(f"Error closing WebSocket: {e}")
+        
+        logger.info(f"Closed {len(connections)} WebSocket connections")
 
 
 manager = ConnectionManager()
@@ -105,8 +156,8 @@ async def lifespan(app: FastAPI):
         # Initialize Groq client
         try:
             groq = get_groq_client()
-            await groq.init_redis()
-            logger.info("✅ Groq client initialized")
+            await groq.start_cache_cleanup()
+            logger.info("✅ Groq client initialized with cache cleanup")
         except Exception as groq_error:
             logger.warning(f"⚠️ Groq client initialization failed: {groq_error}")
         
@@ -121,10 +172,20 @@ async def lifespan(app: FastAPI):
     # Shutdown
     try:
         logger.info("Shutting down AIRA backend...")
+        
+        # Close all WebSocket connections
         try:
+            await manager.close_all()
+        except Exception as e:
+            logger.warning(f"Error closing WebSocket connections: {e}")
+        
+        # Close Groq client
+        try:
+            groq = get_groq_client()
             await groq.close()
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Error closing Groq client: {e}")
+        
         logger.info("✅ Shutdown complete")
     except Exception as e:
         logger.error(f"Error during shutdown: {e}", exc_info=True)
@@ -147,22 +208,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include authentication routes
-app.include_router(auth_router)
+# Include integration routes
 app.include_router(integration_router)
-
-
-async def verify_webhook_auth(api_key: Optional[str] = None):
-    """Verify webhook authentication via API key"""
-    if not api_key:
-        return False
-    
-    db = SessionLocal()
-    try:
-        is_valid = await verify_api_key(api_key, db)
-        return is_valid
-    finally:
-        db.close()
 
 
 async def process_incident_background(incident_id: str, event: LogEvent):
@@ -270,47 +317,37 @@ async def health_check():
 @app.post("/webhook", response_model=IncidentResponse)
 async def webhook_handler(
     event: LogEvent,
-    background_tasks: BackgroundTasks,
-    x_api_key: Optional[str] = Header(None)
+    background_tasks: BackgroundTasks
 ):
     """
     Webhook endpoint to receive log events
-    Supports optional API key authentication via X-API-Key header
+    Open access - no authentication required
     """
-    # Optional: Verify API key if provided
-    if x_api_key:
-        is_valid = await verify_webhook_auth(x_api_key)
-        if not is_valid:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid API key"
-            )
-    
     # Generate incident ID
     incident_id = event.id or str(uuid.uuid4())
     
     logger.info(f"[Webhook] Received incident {incident_id}")
     
-    # Store raw incident in database
-    db = SessionLocal()
+    # Store raw incident in database with proper session management
     try:
-        incident = Incident(
-            id=incident_id,
-            raw_log=event.message,
-            stack_trace=event.stack_trace or "",
-            severity=event.severity or "",
-            resolution_status="pending",
-            created_at=datetime.utcnow()
-        )
-        db.add(incident)
-        db.commit()
-        logger.info(f"[Webhook] Stored incident {incident_id} in database")
+        with get_db_session() as db:
+            incident = Incident(
+                id=incident_id,
+                raw_log=event.message,
+                stack_trace=event.stack_trace or "",
+                severity=event.severity or "",
+                resolution_status="pending",
+                created_at=datetime.utcnow()
+            )
+            db.add(incident)
+            # Commit happens automatically via context manager
+            logger.info(f"[Webhook] Stored incident {incident_id} in database")
     except Exception as e:
-        logger.error(f"[Webhook] Database error: {e}")
-        db.rollback()
-        raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
-    finally:
-        db.close()
+        logger.error(f"[Webhook] Database error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Database error: {str(e)}"
+        )
     
     # Broadcast that incident was received
     await manager.broadcast({
@@ -335,42 +372,48 @@ async def webhook_handler(
 @app.get("/incidents")
 async def list_incidents(limit: int = 50, offset: int = 0):
     """
-    List recent incidents
+    List recent incidents with proper session management
     """
-    db = SessionLocal()
     try:
-        incidents = db.query(Incident).order_by(
-            Incident.created_at.desc()
-        ).limit(limit).offset(offset).all()
-        
-        return {
-            "incidents": [inc.to_dict() for inc in incidents],
-            "total": db.query(Incident).count()
-        }
-    finally:
-        db.close()
+        with get_db_session() as db:
+            incidents = db.query(Incident).order_by(
+                Incident.created_at.desc()
+            ).limit(limit).offset(offset).all()
+            
+            total = db.query(Incident).count()
+            
+            return {
+                "incidents": [inc.to_dict() for inc in incidents],
+                "total": total
+            }
+    except Exception as e:
+        logger.error(f"Error listing incidents: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve incidents")
 
 
 @app.get("/incidents/{incident_id}")
 async def get_incident(incident_id: str):
     """
-    Get specific incident details
+    Get specific incident details with proper session management
     """
-    db = SessionLocal()
     try:
-        incident = db.query(Incident).filter(Incident.id == incident_id).first()
-        if not incident:
-            raise HTTPException(status_code=404, detail="Incident not found")
-        
-        return incident.to_dict()
-    finally:
-        db.close()
+        with get_db_session() as db:
+            incident = db.query(Incident).filter(Incident.id == incident_id).first()
+            if not incident:
+                raise HTTPException(status_code=404, detail="Incident not found")
+            
+            return incident.to_dict()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving incident {incident_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve incident")
 
 
 @app.post("/slack/approval")
 async def slack_approval_handler(payload: dict):
     """
-    Handle Slack interactive button clicks
+    Handle Slack interactive button clicks with proper session management
     """
     logger.info(f"[Slack] Received approval payload: {payload}")
     
@@ -386,60 +429,60 @@ async def slack_approval_handler(payload: dict):
         return {"status": "error", "message": "Invalid incident ID"}
     
     # Update incident based on approval
-    db = SessionLocal()
     try:
-        incident = db.query(Incident).filter(Incident.id == incident_id).first()
-        if not incident:
-            return {"status": "error", "message": "Incident not found"}
-        
-        if action_id == "approve_fix":
-            # Create PR if approved
-            logger.info(f"[Slack] Approved fix for incident {incident_id}")
+        with get_db_session() as db:
+            incident = db.query(Incident).filter(Incident.id == incident_id).first()
+            if not incident:
+                return {"status": "error", "message": "Incident not found"}
             
-            mcp = get_mcp_manager()
-            repo = os.getenv("GITHUB_REPO", "owner/repo")
-            branch_name = f"aira-fix-{incident_id}-approved"
+            if action_id == "approve_fix":
+                # Create PR if approved
+                logger.info(f"[Slack] Approved fix for incident {incident_id}")
+                
+                mcp = get_mcp_manager()
+                repo = os.getenv("GITHUB_REPO", "owner/repo")
+                branch_name = f"aira-fix-{incident_id}-approved"
+                
+                try:
+                    pr_result = await mcp.create_pr(
+                        repo=repo,
+                        branch_name=branch_name,
+                        file_path=str(incident.affected_file or "unknown"),
+                        patch_content=str(incident.proposed_fix or ""),
+                        title=f"[AIRA-APPROVED] Fix: {incident.triage_summary}",
+                        description=f"**Incident ID:** {incident_id}\n**Approved by:** Slack user\n\n{incident.diagnosis}"
+                    )
+                    
+                    incident.pr_url = pr_result.get("pr_url", "")
+                    incident.action_taken = "pr_created"
+                    incident.resolution_status = "resolved"
+                    incident.resolved_at = datetime.utcnow()
+                    
+                except Exception as e:
+                    logger.error(f"[Slack] PR creation failed: {e}", exc_info=True)
+                    return {"status": "error", "message": str(e)}
             
-            try:
-                pr_result = await mcp.create_pr(
-                    repo=repo,
-                    branch_name=branch_name,
-                    file_path=incident.affected_file or "unknown",
-                    patch_content=incident.proposed_fix or "",
-                    title=f"[AIRA-APPROVED] Fix: {incident.triage_summary}",
-                    description=f"**Incident ID:** {incident_id}\n**Approved by:** Slack user\n\n{incident.diagnosis}"
-                )
-                
-                incident.pr_url = pr_result.get("pr_url", "")
-                incident.action_taken = "pr_created"
-                incident.resolution_status = "resolved"
-                incident.resolved_at = datetime.utcnow()
-                
-            except Exception as e:
-                logger.error(f"[Slack] PR creation failed: {e}")
-                return {"status": "error", "message": str(e)}
-        
-        elif action_id == "reject_fix":
-            logger.info(f"[Slack] Rejected fix for incident {incident_id}")
-            incident.action_taken = "rejected"
-            incident.resolution_status = "escalated"
-        
-        db.commit()
-        
-        # Broadcast update
-        await manager.broadcast({
-            "type": "incident_updated",
-            "incident_id": incident_id,
-            "data": {
-                "action_taken": incident.action_taken,
-                "pr_url": incident.pr_url
-            }
-        })
-        
-        return {"status": "success", "incident_id": incident_id}
-        
-    finally:
-        db.close()
+            elif action_id == "reject_fix":
+                logger.info(f"[Slack] Rejected fix for incident {incident_id}")
+                incident.action_taken = "rejected"
+                incident.resolution_status = "escalated"
+            
+            # Commit happens automatically via context manager
+            
+            # Broadcast update
+            await manager.broadcast({
+                "type": "incident_updated",
+                "incident_id": incident_id,
+                "data": {
+                    "action_taken": str(incident.action_taken),
+                    "pr_url": str(incident.pr_url) if incident.pr_url else ""
+                }
+            })
+            
+            return {"status": "success", "incident_id": incident_id}
+    except Exception as e:
+        logger.error(f"[Slack] Error handling approval: {e}", exc_info=True)
+        return {"status": "error", "message": str(e)}
 
 
 @app.websocket("/ws")
@@ -462,11 +505,11 @@ async def websocket_endpoint(websocket: WebSocket):
             })
             
     except WebSocketDisconnect:
-        manager.disconnect(websocket)
+        await manager.disconnect(websocket)
         logger.info("[WebSocket] Client disconnected")
     except Exception as e:
-        logger.error(f"[WebSocket] Error: {e}")
-        manager.disconnect(websocket)
+        logger.error(f"[WebSocket] Error: {e}", exc_info=True)
+        await manager.disconnect(websocket)
 
 
 if __name__ == "__main__":
