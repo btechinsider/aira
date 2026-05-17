@@ -33,9 +33,10 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
-# Copy and set up startup script
+# Copy startup scripts
 COPY backend/startup.sh /app/startup.sh
-RUN chmod +x /app/startup.sh
+COPY backend/run.py /app/run.py
+RUN chmod +x /app/startup.sh /app/run.py
 
 # Run application using startup script
 CMD ["/app/startup.sh"]

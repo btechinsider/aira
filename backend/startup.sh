@@ -38,10 +38,10 @@ echo "Checking required environment variables..."
 
 echo ""
 echo "================================"
-echo "Starting Uvicorn server on port ${PORT:-8000}..."
+echo "Starting AIRA server on port ${PORT:-8000}..."
 echo ""
 
-# Start the application with verbose logging
-exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000} --log-level debug 2>&1
+# Start the application with Python wrapper for better error handling
+exec python run.py
 
 # Made with Bob
