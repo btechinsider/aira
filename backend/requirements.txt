@@ -8,8 +8,8 @@ sqlalchemy==2.0.25
 aiosqlite==0.20.0
 psycopg2-binary==2.9.9
 
-# Redis
-redis==5.0.1
+# Redis (optional - disabled for simpler deployment)
+# redis==5.0.1
 
 # HTTP Client
 httpx==0.26.0

@@ -1,5 +1,5 @@
 """
-Groq LLM client with retry logic and Redis caching
+Groq LLM client with retry logic
 """
 import os
 import json
@@ -8,7 +8,6 @@ import asyncio
 from typing import Optional, Dict, Any
 import httpx
 from groq import AsyncGroq
-import redis.asyncio as redis
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -16,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 class GroqClient:
-    """Groq LLM client with caching and retry logic"""
+    """Groq LLM client with retry logic"""
     
     def __init__(self):
         self.api_key = os.getenv("GROQ_API_KEY")
@@ -25,32 +24,17 @@ class GroqClient:
         
         self.client = AsyncGroq(api_key=self.api_key)
         self.model = "llama-3.3-70b-versatile"
-        self.redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
-        self.redis_client: Optional[redis.Redis] = None
         self.max_retries = 3
         self.base_delay = 1.0
+        self.cache: Dict[str, str] = {}  # In-memory cache
         
     async def init_redis(self):
-        """Initialize Redis connection"""
-        if not self.redis_client:
-            try:
-                self.redis_client = await redis.from_url(
-                    self.redis_url,
-                    encoding="utf-8",
-                    decode_responses=True,
-                    socket_connect_timeout=5
-                )
-                # Test connection
-                await self.redis_client.ping()
-                logger.info("Redis client initialized successfully")
-            except Exception as e:
-                logger.warning(f"Redis connection failed: {e}. Caching will be disabled.")
-                self.redis_client = None
+        """Initialize Redis connection (disabled - using in-memory cache)"""
+        logger.info("Using in-memory cache (Redis disabled)")
     
     async def close(self):
-        """Close Redis connection"""
-        if self.redis_client:
-            await self.redis_client.close()
+        """Cleanup"""
+        self.cache.clear()
     
     def _generate_cache_key(self, prompt: str, system_prompt: Optional[str], temperature: float) -> str:
         """Generate cache key from prompt parameters"""
@@ -58,30 +42,16 @@ class GroqClient:
         return f"groq:cache:{hashlib.sha256(content.encode()).hexdigest()}"
     
     async def _get_cached_response(self, cache_key: str) -> Optional[str]:
-        """Get cached response from Redis"""
-        if not self.redis_client:
-            return None
-        
-        try:
-            cached = await self.redis_client.get(cache_key)
-            if cached:
-                logger.info(f"Cache hit for key: {cache_key[:16]}...")
-                return cached
-        except Exception as e:
-            logger.warning(f"Redis get error: {e}")
-        
-        return None
+        """Get cached response from in-memory cache"""
+        cached = self.cache.get(cache_key)
+        if cached:
+            logger.info(f"Cache hit for key: {cache_key[:16]}...")
+        return cached
     
     async def _set_cached_response(self, cache_key: str, response: str, ttl: int = 3600):
-        """Cache response in Redis with TTL"""
-        if not self.redis_client:
-            return
-        
-        try:
-            await self.redis_client.setex(cache_key, ttl, response)
-            logger.info(f"Cached response with TTL {ttl}s")
-        except Exception as e:
-            logger.warning(f"Redis set error: {e}")
+        """Cache response in memory"""
+        self.cache[cache_key] = response
+        logger.info(f"Cached response in memory")
     
     async def call_groq(
         self,
