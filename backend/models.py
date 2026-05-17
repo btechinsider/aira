@@ -131,15 +131,38 @@ class APIKey(Base):
 
 # Database setup
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/aira.db")
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False} if "sqlite" in DATABASE_URL else {})
+
+# Handle Supabase connection string format
+# Supabase uses postgres:// but SQLAlchemy requires postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Configure engine based on database type
+if "postgresql" in DATABASE_URL or "postgres" in DATABASE_URL:
+    # PostgreSQL configuration (for Supabase/Render)
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=5,
+        max_overflow=10,
+        pool_pre_ping=True,  # Verify connections before using
+        pool_recycle=3600,   # Recycle connections after 1 hour
+        echo=False,  # Set to True for SQL query logging
+    )
+else:
+    # SQLite configuration (for local development)
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False}
+    )
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 
 def init_db():
     """Initialize database tables"""
     # Check if we need to recreate the database due to schema changes
-    import sqlite3
     if "sqlite" in DATABASE_URL:
+        import sqlite3
         db_path = DATABASE_URL.replace("sqlite:///", "")
         if os.path.exists(db_path):
             # Check if the new columns exist
@@ -159,7 +182,9 @@ def init_db():
                 # If there's any error, recreate the database
                 Base.metadata.drop_all(bind=engine)
     
+    # Create all tables
     Base.metadata.create_all(bind=engine)
+    print(f"Database initialized successfully using: {DATABASE_URL.split('@')[0] if '@' in DATABASE_URL else 'SQLite'}")
 
 
 def get_db():

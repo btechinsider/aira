@@ -1,0 +1,127 @@
+# Render Blueprint for AIRA Deployment
+# This file defines all services needed to deploy AIRA on Render
+#
+# NOTE: This configuration uses Render's managed PostgreSQL.
+# If you prefer to use Supabase instead:
+# 1. Remove the 'databases' section at the bottom
+# 2. Manually set DATABASE_URL in Render dashboard with your Supabase connection string
+# 3. Format: postgresql://postgres.xxxxx:password@aws-0-region.pooler.supabase.com:5432/postgres
+
+services:
+  # Backend API Service
+  - type: web
+    name: aira-backend
+    runtime: python
+    region: oregon
+    plan: starter
+    branch: main
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+        # Option 1: Use Render managed PostgreSQL (uncomment below)
+        # fromDatabase:
+        #   name: aira-db
+        #   property: connectionString
+        # Option 2: Use Supabase (set manually in Render dashboard)
+        # Get from: Supabase Project -> Settings -> Database -> Connection String
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: aira-redis
+          property: connectionString
+      - key: SLACK_WEBHOOK_URL
+        sync: false
+      - key: GITHUB_MCP_URL
+        value: http://aira-github-mcp:8000
+      - key: INCIDENT_CONTEXT_MCP_URL
+        value: http://aira-incident-context-mcp:8000
+      - key: LOG_LEVEL
+        value: INFO
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: aira-frontend
+          property: host
+
+  # Frontend Service
+  - type: web
+    name: aira-frontend
+    runtime: node
+    region: oregon
+    plan: starter
+    branch: main
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run preview -- --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: NODE_VERSION
+        value: 18.0.0
+      - key: VITE_BACKEND_URL
+        fromService:
+          type: web
+          name: aira-backend
+          property: host
+      - key: VITE_WS_URL
+        fromService:
+          type: web
+          name: aira-backend
+          envVarKey: WS_URL
+
+  # GitHub MCP Server
+  - type: web
+    name: aira-github-mcp
+    runtime: docker
+    region: oregon
+    plan: starter
+    branch: main
+    dockerfilePath: ./mcp-servers/github_mcp/Dockerfile
+    dockerContext: ./mcp-servers/github_mcp
+    envVars:
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_REPO
+        sync: false
+
+  # Incident Context MCP Server
+  - type: web
+    name: aira-incident-context-mcp
+    runtime: docker
+    region: oregon
+    plan: starter
+    branch: main
+    dockerfilePath: ./mcp-servers/incident_context_mcp/Dockerfile
+    dockerContext: ./mcp-servers/incident_context_mcp
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+        # Use the same DATABASE_URL as backend (Supabase or Render PostgreSQL)
+
+databases:
+  # Redis Cache
+  - name: aira-redis
+    region: oregon
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+
+  # PostgreSQL Database (OPTIONAL - Remove if using Supabase)
+  # Uncomment below if you want to use Render's managed PostgreSQL instead of Supabase
+  # - name: aira-db
+  #   databaseName: aira
+  #   user: aira
+  #   region: oregon
+  #   plan: starter
+  #   ipAllowList: []
+
+# Made with Bob

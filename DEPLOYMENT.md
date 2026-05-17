@@ -6,6 +6,7 @@ This guide provides step-by-step instructions for deploying AIRA to various envi
 
 - [Local Development](#local-development)
 - [Docker Deployment](#docker-deployment)
+- [Render Deployment](#render-deployment) ⭐ **Recommended**
 - [Cloud Deployment](#cloud-deployment)
 - [Production Checklist](#production-checklist)
 
@@ -85,7 +86,54 @@ docker run -d \
   aira-frontend:latest
 ```
 
-## ☁️ Cloud Deployment
+## ☁️ Render Deployment
+
+### Quick Deploy to Render (Recommended)
+
+Render is the recommended platform for deploying AIRA due to its simplicity, automatic deployments, and excellent PostgreSQL/Redis support.
+
+**📖 See [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md) for complete Render deployment guide.**
+
+#### Quick Start
+
+1. **Fork the repository** to your GitHub account
+
+2. **Sign up for Render** at [render.com](https://render.com)
+
+3. **Deploy using Blueprint**:
+   - Click "New" → "Blueprint"
+   - Connect your GitHub repository
+   - Select the AIRA repository
+   - Render will detect `render.yaml` and create all services
+
+4. **Configure environment variables**:
+   - `GROQ_API_KEY`: Your Groq API key
+   - `GITHUB_TOKEN`: Your GitHub Personal Access Token
+   - `GITHUB_REPO`: Format `owner/repository`
+   - `SLACK_WEBHOOK_URL`: (Optional) Slack webhook
+
+5. **Deploy**: Click "Apply" and wait for services to start
+
+#### What Gets Deployed
+
+- ✅ Backend API (Python/FastAPI)
+- ✅ Frontend (React/Vite)
+- ✅ PostgreSQL Database
+- ✅ Redis Cache
+- ✅ GitHub MCP Server (optional)
+- ✅ Incident Context MCP Server (optional)
+
+#### Pricing
+
+- **Free Tier**: $0/month (with limitations)
+- **Starter**: ~$31/month (recommended for production)
+- **Pro**: ~$95/month (for high traffic)
+
+See [RENDER_DEPLOYMENT.md](./RENDER_DEPLOYMENT.md) for detailed pricing and setup instructions.
+
+---
+
+## ☁️ Other Cloud Deployments
 
 ### AWS ECS
 
