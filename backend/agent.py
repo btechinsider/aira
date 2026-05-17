@@ -8,7 +8,6 @@ import hashlib
 import logging
 from typing import TypedDict, Annotated, Literal
 from datetime import datetime
-import redis.asyncio as redis
 from langgraph.graph import StateGraph, END
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
