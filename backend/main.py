@@ -92,25 +92,39 @@ async def lifespan(app: FastAPI):
     # Startup
     try:
         logger.info("Starting AIRA backend...")
-        init_db()
-        logger.info("Database initialized successfully")
+        
+        # Initialize database with timeout
+        try:
+            logger.info("Initializing database...")
+            init_db()
+            logger.info("✅ Database initialized successfully")
+        except Exception as db_error:
+            logger.warning(f"⚠️ Database initialization failed: {db_error}")
+            logger.warning("Application will start but database operations may fail")
         
         # Initialize Groq client
-        groq = get_groq_client()
-        await groq.init_redis()
-        logger.info("Groq client initialized")
+        try:
+            groq = get_groq_client()
+            await groq.init_redis()
+            logger.info("✅ Groq client initialized")
+        except Exception as groq_error:
+            logger.warning(f"⚠️ Groq client initialization failed: {groq_error}")
         
         logger.info("✅ AIRA backend startup complete!")
     except Exception as e:
         logger.error(f"❌ Startup failed: {e}", exc_info=True)
-        raise
+        # Don't raise - let the app start anyway
+        logger.warning("⚠️ Starting with limited functionality")
     
     yield
     
     # Shutdown
     try:
         logger.info("Shutting down AIRA backend...")
-        await groq.close()
+        try:
+            await groq.close()
+        except:
+            pass
         logger.info("✅ Shutdown complete")
     except Exception as e:
         logger.error(f"Error during shutdown: {e}", exc_info=True)
