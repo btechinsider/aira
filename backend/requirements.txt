@@ -23,9 +23,8 @@ langchain-core==0.2.38
 langchain-groq==0.1.9
 groq==0.4.2
 
-# Data Validation - Fixed versions for compatibility
-pydantic==2.5.3
-pydantic-core==2.14.6
+# Data Validation - Use versions with pre-built wheels
+pydantic==2.6.0
 pydantic-settings==2.1.0
 email-validator==2.1.0
 
