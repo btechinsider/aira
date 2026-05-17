@@ -33,12 +33,19 @@ class GroqClient:
     async def init_redis(self):
         """Initialize Redis connection"""
         if not self.redis_client:
-            self.redis_client = await redis.from_url(
-                self.redis_url,
-                encoding="utf-8",
-                decode_responses=True
-            )
-            logger.info("Redis client initialized")
+            try:
+                self.redis_client = await redis.from_url(
+                    self.redis_url,
+                    encoding="utf-8",
+                    decode_responses=True,
+                    socket_connect_timeout=5
+                )
+                # Test connection
+                await self.redis_client.ping()
+                logger.info("Redis client initialized successfully")
+            except Exception as e:
+                logger.warning(f"Redis connection failed: {e}. Caching will be disabled.")
+                self.redis_client = None
     
     async def close(self):
         """Close Redis connection"""

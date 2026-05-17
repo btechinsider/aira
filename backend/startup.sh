@@ -34,6 +34,7 @@ echo "Checking required environment variables..."
 [ -z "$GROQ_API_KEY" ] && echo "⚠️  WARNING: GROQ_API_KEY not set" || echo "✅ GROQ_API_KEY is set"
 [ -z "$GITHUB_TOKEN" ] && echo "⚠️  WARNING: GITHUB_TOKEN not set" || echo "✅ GITHUB_TOKEN is set"
 [ -z "$GITHUB_REPO" ] && echo "⚠️  WARNING: GITHUB_REPO not set" || echo "✅ GITHUB_REPO is set"
+[ -z "$REDIS_URL" ] && echo "⚠️  INFO: REDIS_URL not set (caching disabled)" || echo "✅ REDIS_URL is set"
 
 echo ""
 echo "================================"

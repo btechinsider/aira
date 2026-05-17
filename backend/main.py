@@ -90,19 +90,30 @@ manager = ConnectionManager()
 async def lifespan(app: FastAPI):
     """Startup and shutdown events"""
     # Startup
-    logger.info("Starting AIRA backend...")
-    init_db()
-    
-    # Initialize Groq client
-    groq = get_groq_client()
-    await groq.init_redis()
-    logger.info("Groq client initialized")
+    try:
+        logger.info("Starting AIRA backend...")
+        init_db()
+        logger.info("Database initialized successfully")
+        
+        # Initialize Groq client
+        groq = get_groq_client()
+        await groq.init_redis()
+        logger.info("Groq client initialized")
+        
+        logger.info("✅ AIRA backend startup complete!")
+    except Exception as e:
+        logger.error(f"❌ Startup failed: {e}", exc_info=True)
+        raise
     
     yield
     
     # Shutdown
-    logger.info("Shutting down AIRA backend...")
-    await groq.close()
+    try:
+        logger.info("Shutting down AIRA backend...")
+        await groq.close()
+        logger.info("✅ Shutdown complete")
+    except Exception as e:
+        logger.error(f"Error during shutdown: {e}", exc_info=True)
 
 
 # FastAPI app
