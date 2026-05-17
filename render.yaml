@@ -113,7 +113,6 @@ databases:
   - name: aira-redis
     region: oregon
     plan: starter
-    maxmemoryPolicy: allkeys-lru
 
   # PostgreSQL Database (OPTIONAL - Remove if using Supabase)
   # Uncomment below if you want to use Render's managed PostgreSQL instead of Supabase
