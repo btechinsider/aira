@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '../AuthContext';
-import { AlertTriangle, BarChart3, Plug, BookOpen, Wrench, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, BarChart3, Plug, BookOpen, Wrench, LogOut, ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react';
 
 interface SidebarProps {
   currentView: string;
@@ -20,6 +20,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const navItems = [
     { id: 'incidents', label: 'Incidents', icon: AlertTriangle, badge: null },
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, badge: null },
+    { id: 'ecommerce-demo', label: 'E-Commerce Demo', icon: ShoppingCart, badge: null },
     { id: 'api-docs', label: 'API Docs', icon: Plug, badge: null },
     { id: 'user-guide', label: 'User Guide', icon: BookOpen, badge: null },
     { id: 'diagnosis-guide', label: 'Diagnosis', icon: Wrench, badge: null },

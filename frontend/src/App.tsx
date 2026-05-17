@@ -8,6 +8,7 @@ import { Dashboard } from './Dashboard';
 import { ApiDocumentation } from './ApiDocumentation';
 import { UserGuide } from './UserGuide';
 import { DiagnosisGuide } from './DiagnosisGuide';
+import { EcommerceDemo } from './EcommerceDemo';
 import { Sidebar } from './components/Sidebar';
 import { ConnectionStatus } from './components/ConnectionStatus';
 import './index.css';
@@ -27,7 +28,7 @@ interface Incident {
   messages: string[];
 }
 
-type ViewType = 'incidents' | 'dashboard' | 'api-docs' | 'user-guide' | 'diagnosis-guide';
+type ViewType = 'incidents' | 'dashboard' | 'ecommerce-demo' | 'api-docs' | 'user-guide' | 'diagnosis-guide';
 
 function MainApp() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -72,6 +73,7 @@ function MainApp() {
         }`}
       >
         {currentView === 'dashboard' && <Dashboard onBack={() => setCurrentView('incidents')} />}
+        {currentView === 'ecommerce-demo' && <EcommerceDemo onBack={() => setCurrentView('incidents')} />}
         {currentView === 'api-docs' && <ApiDocumentation onBack={() => setCurrentView('incidents')} />}
         {currentView === 'user-guide' && <UserGuide onBack={() => setCurrentView('incidents')} />}
         {currentView === 'diagnosis-guide' && <DiagnosisGuide onBack={() => setCurrentView('incidents')} />}
