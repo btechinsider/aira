@@ -19,10 +19,18 @@ def main():
         logger.info("🔍 Python version: %s", sys.version)
         logger.info("🔍 Working directory: %s", os.getcwd())
         logger.info("🔍 Python path: %s", sys.path)
+        logger.info("🔍 Environment variables:")
+        logger.info("  - DATABASE_URL: %s", "SET" if os.getenv("DATABASE_URL") else "NOT SET")
+        logger.info("  - GROQ_API_KEY: %s", "SET" if os.getenv("GROQ_API_KEY") else "NOT SET")
+        logger.info("  - PORT: %s", os.getenv("PORT", "8000"))
         
         logger.info("🔍 Attempting to import main module...")
-        import main
-        logger.info("✅ Main module imported successfully")
+        try:
+            import main
+            logger.info("✅ Main module imported successfully")
+        except Exception as import_error:
+            logger.error("❌ Failed to import main module!", exc_info=True)
+            raise
         
         logger.info("🔍 Checking FastAPI app...")
         app = main.app
