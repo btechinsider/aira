@@ -6,6 +6,7 @@ import sys
 import os
 import traceback
 import logging
+import signal
 
 # Set up logging
 logging.basicConfig(
@@ -26,8 +27,21 @@ def main():
         
         logger.info("🔍 Attempting to import main module...")
         try:
-            import main
-            logger.info("✅ Main module imported successfully")
+            def timeout_handler(signum, frame):
+                raise TimeoutError("Import timed out after 30 seconds")
+            
+            # Set 30 second timeout for import
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(30)
+            
+            try:
+                import main
+                signal.alarm(0)  # Cancel alarm
+                logger.info("✅ Main module imported successfully")
+            except TimeoutError as e:
+                logger.error("❌ Import timed out! This usually means database connection is hanging.")
+                logger.error("Check if DATABASE_URL is correct and database is accessible.")
+                raise
         except Exception as import_error:
             logger.error("❌ Failed to import main module!", exc_info=True)
             raise
