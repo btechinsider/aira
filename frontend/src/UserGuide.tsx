@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useAuth } from './AuthContext';
 import {
   Rocket,
   BarChart3,
@@ -18,7 +17,6 @@ import {
 } from 'lucide-react';
 
 export const UserGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-  const { user, logout } = useAuth();
   const [activeSection, setActiveSection] = useState('getting-started');
 
   const sections = [
@@ -53,15 +51,9 @@ export const UserGuide: React.FC<{ onBack: () => void }> = ({ onBack }) => {
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
-                <p className="text-xs text-slate-400">Logged in as</p>
-                <p className="text-sm font-semibold">{user?.username}</p>
+                <p className="text-xs text-slate-400">Open Access Mode</p>
+                <p className="text-sm font-semibold text-green-400">No Auth Required</p>
               </div>
-              <button
-                onClick={logout}
-                className="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg transition-colors text-sm"
-              >
-                Logout
-              </button>
             </div>
           </div>
         </div>

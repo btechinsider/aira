@@ -369,6 +369,19 @@ async def webhook_handler(
     )
 
 
+@app.post("//webhook", response_model=IncidentResponse)
+async def webhook_handler_proxy(
+    event: LogEvent,
+    background_tasks: BackgroundTasks
+):
+    """
+    Workaround for Render.com proxy adding extra slash
+    Handles requests to //webhook by forwarding to main webhook handler
+    """
+    logger.info("[Webhook] Received request via double-slash path (proxy issue)")
+    return await webhook_handler(event, background_tasks)
+
+
 @app.get("/incidents")
 async def list_incidents(limit: int = 50, offset: int = 0):
     """

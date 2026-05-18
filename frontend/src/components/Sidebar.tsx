@@ -1,6 +1,5 @@
 import React from 'react';
-import { useAuth } from '../AuthContext';
-import { AlertTriangle, BarChart3, Plug, BookOpen, Wrench, LogOut, ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react';
+import { AlertTriangle, BarChart3, Plug, BookOpen, Wrench, ChevronLeft, ChevronRight, ShoppingCart } from 'lucide-react';
 
 interface SidebarProps {
   currentView: string;
@@ -15,8 +14,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isCollapsed = false,
   onToggleCollapse,
 }) => {
-  const { user, logout } = useAuth();
-
   const navItems = [
     { id: 'incidents', label: 'Incidents', icon: AlertTriangle, badge: null },
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, badge: null },
@@ -80,39 +77,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* User Section */}
+      {/* App Info Section */}
       <div className="p-4 border-t border-slate-700">
-        {!isCollapsed ? (
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 px-3 py-2 bg-slate-700 rounded-lg">
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                {user?.username?.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-white truncate">
-                  {user?.username}
-                </p>
-                <p className="text-xs text-slate-400 truncate">{user?.email}</p>
-              </div>
-            </div>
-            <button
-              onClick={logout}
-              className="btn-ghost w-full text-sm"
-              aria-label="Logout"
-            >
-              <LogOut size={18} aria-hidden="true" />
-              <span>Logout</span>
-            </button>
+        {!isCollapsed && (
+          <div className="px-3 py-2 bg-slate-700 rounded-lg">
+            <p className="text-xs text-slate-400">AIRA v1.0.0</p>
+            <p className="text-xs text-slate-500">Open Access Mode</p>
           </div>
-        ) : (
-          <button
-            onClick={logout}
-            className="btn-icon w-full"
-            aria-label="Logout"
-            title="Logout"
-          >
-            <LogOut size={20} />
-          </button>
         )}
       </div>
     </aside>
