@@ -11121,42 +11121,7 @@ I see the issue! The DATABASE_URL in the .env file has a newline character or ex
 
 ---
 
-**User:**
 
-[read_file for '.env'. Reading multiple files at once is more efficient for the LLM. If other files are relevant to your current task, please read them simultaneously.] Result:
-<files>
-<file><path>.env</path>
-<content lines="1-32">
- 1 | # Backend Configuration
- 2 | # Groq API Configuration
- 3 | GROQ_API_KEY=
- 4 | 
- 5 | # GitHub Configuration
- 6 | GITHUB_TOKEN=
- 8 | 
- 9 | # Slack Configuration
-10 | SLACK_WEBHOOK_URL=
-11 | 
-12 | # Redis Configuration
-13 | REDIS_URL=redis://redis:6379
-14 | 
-15 | # Database Configuration
-16 | DATABASE_URL
-18 | # MCP Services Configuration
-19 | GITHUB_MCP_URL=http://localhost:8001
-20 | INCIDENT_CONTEXT_MCP_URL=http://localhost:8002
-21 | 
-22 | # JWT Configuration
-23 | JWT_SECRET_KEY=your-secret-key-change-in-production
-24 | 
-25 | # Frontend Configuration
-26 | # API Backend URL
-27 | VITE_API_URL=http://localhost:8000
-28 | VITE_WS_URL=ws://localhost:8000/ws
-29 | 
-30 | # Frontend App Configuration
-31 | VITE_APP_NAME=AIRA
-32 | VITE_APP_VERSION=1.0.0
 </content>
 </file>
 </files>
