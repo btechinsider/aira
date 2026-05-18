@@ -10580,44 +10580,7 @@ I see! The .env file is missing frontend-related configuration. Let me add the n
 <path>.env</path>
 <diff>
 <<<<<<< SEARCH
-# Groq API Configuration
 
-# Backend Configuration
-# Groq API Configuration
-GROQ_API_KEY=
-
-# GitHub Configuration
-GITHUB_TOKEN=
-# Slack Configuration
-SLACK_WEBHOOK_URL=
-# Redis Configuration
-REDIS_URL=redis://redis:6379
-
-# Database Configuration
-DATABASE_U
-
-# MCP Services Configuration
-GITHUB_MCP_URL=http://localhost:8001
-INCIDENT_CONTEXT_MCP_URL=http://localhost:8002
-
-# JWT Configuration
-JWT_SECRET_KEY=your-secret-key-change-in-production
-
-# Frontend Configuration
-# API Backend URL
-VITE_API_URL=http://localhost:8000
-VITE_WS_URL=ws://localhost:8000/ws
-
-# Frontend App Configuration
-VITE_APP_NAME=AIRA
-VITE_APP_VERSION=1.0.0
->>>>>>> REPLACE
-</diff>
-</apply_diff>
-
----
-
-**User:**
 
 [apply_diff for '.env'] Result:
 <file_write_result>
