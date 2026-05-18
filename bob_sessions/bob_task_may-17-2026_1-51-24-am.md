@@ -8290,14 +8290,7 @@ The following optimizations are documented in `OPTIMIZATION_PLAN.md` but not yet
 - [ ] Test WebSocket connections under load
 - [ ] Verify circuit breaker thresholds
 
-### Environment Variables
-No new environment variables required. Existing variables:
-- `DATABASE_URL` - Database connection string
-- `GROQ_API_KEY` - Groq API key
-- `GITHUB_REPO` - GitHub repository
-- `GITHUB_MCP_URL` - GitHub MCP service URL
-- `INCIDENT_CONTEXT_MCP_URL` - Incident Context MCP service URL
-- `SLACK_WEBHOOK_URL` - Slack webhook URL
+
 
 ### Deployment Steps
 1. **Backup Database**
@@ -10501,23 +10494,7 @@ I understand! Let me check the .env file and add the missing frontend configurat
 
 [read_file for '.env'. Reading multiple files at once is more efficient for the LLM. If other files are relevant to your current task, please read them simultaneously.] Result:
 <files>
-<file><path>.env</path>
-<content lines="1-15">
- 1 | # Groq API Configuration
- 2 | GROQ_API_KEY=
- 4 | # GitHub Configuration
- 5 | GITHUB_TOKEN=
- 6 | GITHUB_REPO=\
- 7 | 
- 8 | # Slack Configuration
- 9 | SLACK_WEBHOOK_URL=
-10 | 
-11 | # Redis Configuration
-12 | REDIS_URL=redis://redis:6379
-13 | 
-14 | # Database Configuration
-15 | DATABASE_URL=
-</content>
+<
 </file>
 </files>
 <environment_details>

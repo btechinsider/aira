@@ -1313,65 +1313,7 @@ You have not created a todo list yet. Create one with `update_todo_list` if your
 </file>
 <file><path>.env.example</path>
 <content lines="1-55">
- 1 | # Groq API Configuration
- 2 | GROQ_API_KEY=your_groq_api_key_here
- 3 | 
- 4 | # GitHub Configuration
- 5 | GITHUB_TOKEN=github_pat_your_token_here
- 6 | GITHUB_REPO=owner/repo
- 7 | 
- 8 | # Slack Configuration (Optional)
- 9 | SLACK_WEBHOOK_URL=https://hooks.slack.com/services/YOUR/WEBHOOK/URL
-10 | 
-11 | # Redis Configuration
-12 | # For local development (Docker)
-13 | REDIS_URL=redis://redis:6379
-14 | # For Render deployment (automatically set by Render)
-15 | # REDIS_URL=redis://red-xxxxx:6379
-16 | 
-17 | # Database Configuration
-18 | # For local development (SQLite)
-19 | DATABASE_URL=sqlite:///./aira.db
-20 | 
-21 | # For production with Supabase (PostgreSQL) - RECOMMENDED
-22 | # Get this from your Supabase project settings -> Database -> Connection String
-23 | # DATABASE_URL=postgresql://postgres.xxxxx:password@aws-0-region.pooler.supabase.com:5432/postgres
-24 | 
-25 | # For Render managed PostgreSQL (alternative)
-26 | # Render automatically provides this via DATABASE_URL environment variable
-27 | # DATABASE_URL=postgresql://user:password@host:5432/database
-28 | 
-29 | # MCP Server URLs
-30 | # For local Docker development
-31 | GITHUB_MCP_URL=http://github-mcp:8000
-32 | INCIDENT_CONTEXT_MCP_URL=http://incident-context-mcp:8000
-33 | 
-34 | # For Render deployment (use your service URLs)
-35 | # GITHUB_MCP_URL=https://aira-github-mcp.onrender.com
-36 | # INCIDENT_CONTEXT_MCP_URL=https://aira-incident-context-mcp.onrender.com
-37 | 
-38 | # JWT Configuration
-39 | JWT_SECRET_KEY=your-secret-key-change-in-production-use-long-random-string
-40 | 
-41 | # Frontend Configuration
-42 | # For local development
-43 | VITE_API_URL=http://localhost:8000
-44 | VITE_WS_URL=ws://localhost:8000/ws
-45 | 
-46 | # For Render deployment (use your backend service URL)
-47 | # VITE_API_URL=https://aira-backend.onrender.com
-48 | # VITE_WS_URL=wss://aira-backend.onrender.com/ws
-49 | 
-50 | # Frontend App Configuration
-51 | VITE_APP_NAME=AIRA
-52 | VITE_APP_VERSION=1.0.0
-53 | 
-54 | # Logging Configuration (Optional)
-55 | LOG_LEVEL=INFO
-</content>
-</file>
-</files>
-<environment_details>
+ 
 # VSCode Visible Files
 .env,backend\run.py
 
