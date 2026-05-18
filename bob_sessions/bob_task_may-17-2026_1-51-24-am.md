@@ -10504,20 +10504,19 @@ I understand! Let me check the .env file and add the missing frontend configurat
 <file><path>.env</path>
 <content lines="1-15">
  1 | # Groq API Configuration
- 2 | GROQ_API_KEY=REDACTED_FOR_SECURITY
- 3 | 
+ 2 | GROQ_API_KEY=
  4 | # GitHub Configuration
- 5 | GITHUB_TOKEN=REDACTED_FOR_SECURITY
- 6 | GITHUB_REPO=piyush080205/ChainInvoice
+ 5 | GITHUB_TOKEN=
+ 6 | GITHUB_REPO=\
  7 | 
  8 | # Slack Configuration
- 9 | SLACK_WEBHOOK_URL=REDACTED_FOR_SECURITY
+ 9 | SLACK_WEBHOOK_URL=
 10 | 
 11 | # Redis Configuration
 12 | REDIS_URL=redis://redis:6379
 13 | 
 14 | # Database Configuration
-15 | DATABASE_URL=postgresql://postgres.pqxcxnwomnofgqiszaug:REDACTED_FOR_SECURITY@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
+15 | DATABASE_URL=
 </content>
 </file>
 </files>
@@ -10582,37 +10581,20 @@ I see! The .env file is missing frontend-related configuration. Let me add the n
 <diff>
 <<<<<<< SEARCH
 # Groq API Configuration
-GROQ_API_KEY=REDACTED_FOR_SECURITY
 
-# GitHub Configuration
-GITHUB_TOKEN=REDACTED_FOR_SECURITY
-GITHUB_REPO=piyush080205/ChainInvoice
-
-# Slack Configuration
-SLACK_WEBHOOK_URL=REDACTED_FOR_SECURITY
-
-# Redis Configuration
-REDIS_URL=redis://redis:6379
-
-# Database Configuration
-DATABASE_URL=postgresql://postgres.pqxcxnwomnofgqiszaug:REDACTED_FOR_SECURITY@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
-=======
 # Backend Configuration
 # Groq API Configuration
-GROQ_API_KEY=REDACTED_FOR_SECURITY
+GROQ_API_KEY=
 
 # GitHub Configuration
-GITHUB_TOKEN=REDACTED_FOR_SECURITY
-GITHUB_REPO=piyush080205/ChainInvoice
-
+GITHUB_TOKEN=
 # Slack Configuration
-SLACK_WEBHOOK_URL=REDACTED_FOR_SECURITY
-
+SLACK_WEBHOOK_URL=
 # Redis Configuration
 REDIS_URL=redis://redis:6379
 
 # Database Configuration
-DATABASE_URL=postgresql://postgres.pqxcxnwomnofgqiszaug:REDACTED_FOR_SECURITY@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
+DATABASE_U
 
 # MCP Services Configuration
 GITHUB_MCP_URL=http://localhost:8001
@@ -11207,21 +11189,19 @@ I see the issue! The DATABASE_URL in the .env file has a newline character or ex
 <content lines="1-32">
  1 | # Backend Configuration
  2 | # Groq API Configuration
- 3 | GROQ_API_KEY=REDACTED_FOR_SECURITY
+ 3 | GROQ_API_KEY=
  4 | 
  5 | # GitHub Configuration
- 6 | GITHUB_TOKEN=REDACTED_FOR_SECURITY
- 7 | GITHUB_REPO=piyush080205/ChainInvoice
+ 6 | GITHUB_TOKEN=
  8 | 
  9 | # Slack Configuration
-10 | SLACK_WEBHOOK_URL=REDACTED_FOR_SECURITY
+10 | SLACK_WEBHOOK_URL=
 11 | 
 12 | # Redis Configuration
 13 | REDIS_URL=redis://redis:6379
 14 | 
 15 | # Database Configuration
-16 | DATABASE_URL=postgresql://postgres.pqxcxnwomnofgqiszaug:REDACTED_FOR_SECURITY@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
-17 | 
+16 | DATABASE_URL
 18 | # MCP Services Configuration
 19 | GITHUB_MCP_URL=http://localhost:8001
 20 | INCIDENT_CONTEXT_MCP_URL=http://localhost:8002

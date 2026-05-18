@@ -1310,20 +1310,20 @@ You have not created a todo list yet. Create one with `update_todo_list` if your
 <content lines="1-32">
  1 | # Backend Configuration
  2 | # Groq API Configuration
- 3 | GROQ_API_KEY=REDACTED_FOR_SECURITY
+ 3 | GROQ_API_KEY=
  4 | 
  5 | # GitHub Configuration
- 6 | GITHUB_TOKEN=REDACTED_FOR_SECURITY
- 7 | GITHUB_REPO=piyush080205/ChainInvoice
+ 6 | GITHUB_TOKEN=
+ 7 | GITHUB_REPO=
  8 | 
  9 | # Slack Configuration
-10 | SLACK_WEBHOOK_URL=REDACTED_FOR_SECURITY
+10 | SLACK_WEBHOOK_URL=
 11 | 
 12 | # Redis Configuration
 13 | REDIS_URL=redis://redis:6379
 14 | 
 15 | # Database Configuration
-16 | DATABASE_URL=postgresql://postgres.pqxcxnwomnofgqiszaug:REDACTED_FOR_SECURITY@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres
+16 | DATABASE_URL=
 17 | 
 18 | # MCP Services Configuration
 19 | GITHUB_MCP_URL=http://localhost:8001
@@ -1334,8 +1334,8 @@ You have not created a todo list yet. Create one with `update_todo_list` if your
 24 | 
 25 | # Frontend Configuration
 26 | # API Backend URL
-27 | VITE_API_URL=https://aira-1-yxlx.onrender.com
-28 | VITE_WS_URL=https://aira-1-yxlx.onrender.com/ws
+27 | VITE_API_URL=https://aira-
+28 | VITE_WS_URL=https://
 29 | 
 30 | # Frontend App Configuration
 31 | VITE_APP_NAME=AIRA
