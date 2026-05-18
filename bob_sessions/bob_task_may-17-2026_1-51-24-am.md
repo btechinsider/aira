@@ -11268,7 +11268,7 @@ Let me use PowerShell syntax:
 [execute_command for 'cd backend; python -c "import os; from dotenv import load_dotenv; load_dotenv('../.env'); print(repr(os.getenv('DATABASE_URL')))"'] Result:
 Command executed in terminal  within working directory 'd:/Desktop/aira/aira'. Exit code: 0
 Output:
-'postgresql://postgres.pqxcxnwomnofgqiszaug:REDACTED_FOR_SECURITY@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres'
+'postgresql://postgres.pqxcxnwomnofgqiszaug:PASSWORD_REDACTED@aws-1-ap-southeast-1.pooler.supabase.com:5432/postgres'
 
 <environment_details>
 # VSCode Visible Files
@@ -11858,7 +11858,7 @@ Good! Now let's test the database connection again:
 [execute_command for 'cd backend; python -c "from models import init_db; init_db(); print('Database initialized successfully!')"'] Result:
 Command executed in terminal  within working directory 'd:/Desktop/aira/aira'. Exit code: 0
 Output:
-Database initialized successfully using: postgresql://postgres.pqxcxnwomnofgqiszaug:REDACTED_FOR_SECURITY
+Database initialized successfully using: postgresql://postgres.pqxcxnwomnofgqiszaug:PASSWORD_REDACTED
 Database initialized successfully!
 
 <environment_details>
@@ -11966,7 +11966,7 @@ DATABASE_URL = DATABASE_URL.strip() if DATABASE_URL else "sqlite:////app/data/ai
 
 **✅ Database Connection Test**: PASSED
 ```
-Database initialized successfully using: postgresql://postgres.pqxcxnwomnofgqiszaug:REDACTED_FOR_SECURITY
+Database initialized successfully using: postgresql://postgres.pqxcxnwomnofgqiszaug:PASSWORD_REDACTED
 Database initialized successfully!
 ```
 
