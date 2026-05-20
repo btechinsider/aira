@@ -151,7 +151,7 @@ AIRA is optimized for deployment on Render.com with one-click setup.
 
 **Infrastructure:**
 - Docker & Docker Compose
-- Render (recommended hosting)
+- Render
 - GitHub Actions (CI/CD)
 
 ## 🔑 Environment Variables
